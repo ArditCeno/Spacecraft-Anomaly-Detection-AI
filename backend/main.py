@@ -1,0 +1,402 @@
+"""NASA Spacecraft Anomaly Detection API.
+
+Serves LSTM forecasts for the SMAP D-1 telemetry channel together with the
+ground-truth anomaly windows released by NASA JPL (Telemanom dataset).
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import time
+from contextlib import asynccontextmanager
+from typing import Any
+
+import numpy as np
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from tensorflow.keras.models import load_model
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SENSOR_ID = "D-1"
+MODEL_CANDIDATES = ("nasa_lstm_model.keras", "nasa_lstm_model.h5")
+DEFAULT_EVERY = 2
+DEFAULT_SENSITIVITY = 3.0
+DEFAULT_TOLERANCE = 25
+REFERENCE_FRACTION = 0.40
+MIN_DURATION = 3
+MIN_EPISODE_GAP = 50
+
+BENCHMARK = [
+    {"sensor": "D-1", "spacecraft": "SMAP", "ratio": 10.08, "best_f1": 0.935, "status": "selected"},
+    {"sensor": "A-1", "spacecraft": "SMAP", "ratio": 24.45, "best_f1": 0.404, "status": "rejected"},
+    {"sensor": "E-1", "spacecraft": "SMAP", "ratio": 2.61, "best_f1": 0.438, "status": "rejected"},
+    {"sensor": "E-2", "spacecraft": "SMAP", "ratio": 1.90, "best_f1": 0.337, "status": "rejected"},
+    {"sensor": "S-1", "spacecraft": "SMAP", "ratio": 1.79, "best_f1": 0.304, "status": "rejected"},
+    {"sensor": "T-1", "spacecraft": "SMAP", "ratio": 1.13, "best_f1": 0.210, "status": "rejected"},
+    {"sensor": "F-1", "spacecraft": "SMAP", "ratio": 1.04, "best_f1": 0.028, "status": "rejected"},
+    {"sensor": "P-1", "spacecraft": "SMAP", "ratio": 0.89, "best_f1": 0.084, "status": "rejected"},
+]
+
+STATE: dict[str, Any] = {}
+
+
+def load_any_model() -> tuple[Any, str]:
+    """Load the newest Keras artefact that this TensorFlow build can open."""
+    failures: list[str] = []
+    for name in MODEL_CANDIDATES:
+        path = os.path.join(BASE_DIR, name)
+        if not os.path.exists(path):
+            continue
+        try:
+            return load_model(path), name
+        except Exception as exc:  # pragma: no cover - depends on TF version
+            failures.append(f"{name}: {exc}")
+    raise RuntimeError("No model could be loaded. " + " | ".join(failures))
+
+
+def build_runtime(raw: dict) -> dict:
+    """Run the LSTM once at startup and keep the arrays in memory."""
+    window = int(raw["window_size"])
+    series = np.asarray(raw["test_scaled"], dtype=np.float32).reshape(-1, 1)
+    windows = np.stack([series[i:i + window] for i in range(len(series) - window)])
+
+    predictions = STATE["model"].predict(windows, batch_size=256, verbose=0).flatten()
+    actual = series[window:].flatten()
+    errors = np.abs(actual - predictions)
+    steps = np.arange(window, window + len(actual), dtype=np.int64)
+
+    anomalies = [(int(s), int(e)) for s, e in raw["true_anomalies"]]
+    mask = np.zeros(len(actual), dtype=bool)
+    for start, end in anomalies:
+        mask[max(start - window, 0): end - window + 1] = True
+
+    reference = errors[: max(int(REFERENCE_FRACTION * len(errors)), 1)]
+    ref_mean = float(reference.mean())
+    ref_std = float(reference.std())
+
+    return {
+        "window": window,
+        "sensor_id": raw.get("sensor_id", SENSOR_ID),
+        "spacecraft": raw.get("spacecraft", "SMAP"),
+        "series": series,
+        "actual": actual,
+        "predictions": predictions,
+        "errors": errors,
+        "steps": steps,
+        "mask": mask,
+        "anomalies": anomalies,
+        "ref_mean": ref_mean,
+        "ref_std": ref_std,
+        "mean_error": float(errors.mean()),
+        "std_error": float(errors.std()),
+        "anomaly_ratio": float(errors[mask].mean() / ref_mean) if mask.any() and ref_mean else 0.0,
+    }
+
+
+def threshold_for(runtime: dict, sensitivity: float) -> float:
+    return runtime["ref_mean"] + max(float(sensitivity), 0.0) * runtime["ref_std"]
+
+
+def detected_mask(runtime: dict, sensitivity: float) -> np.ndarray:
+    return runtime["errors"] > threshold_for(runtime, sensitivity)
+
+
+def apply_persistence(flags: np.ndarray, min_duration: int) -> np.ndarray:
+    """Keep only runs of consecutive flagged points at least ``min_duration`` long."""
+    if min_duration <= 1:
+        return flags.copy()
+    kept = np.zeros_like(flags)
+    indices = np.flatnonzero(flags)
+    if indices.size == 0:
+        return kept
+    start = previous = int(indices[0])
+    for current in indices[1:]:
+        current = int(current)
+        if current - previous == 1:
+            previous = current
+            continue
+        if previous - start + 1 >= min_duration:
+            kept[start:previous + 1] = True
+        start = previous = current
+    if previous - start + 1 >= min_duration:
+        kept[start:previous + 1] = True
+    return kept
+
+
+def group_episodes(flags: np.ndarray, steps: np.ndarray, max_gap: int = MIN_EPISODE_GAP) -> list[tuple[int, int]]:
+    indices = np.flatnonzero(flags)
+    if indices.size == 0:
+        return []
+    episodes: list[tuple[int, int]] = []
+    start = previous = int(indices[0])
+    for current in indices[1:]:
+        current = int(current)
+        if steps[current] - steps[previous] <= max_gap:
+            previous = current
+        else:
+            episodes.append((int(steps[start]), int(steps[previous])))
+            start = previous = current
+    episodes.append((int(steps[start]), int(steps[previous])))
+    return episodes
+
+
+def overlaps(first: tuple[int, int], second: tuple[int, int], tolerance: int) -> bool:
+    return not (first[1] < second[0] - tolerance or first[0] > second[1] + tolerance)
+
+
+def compute_metrics(
+    runtime: dict,
+    sensitivity: float,
+    tolerance: int = DEFAULT_TOLERANCE,
+    min_duration: int = MIN_DURATION,
+    episode_gap: int = MIN_EPISODE_GAP,
+) -> dict:
+    flags = detected_mask(runtime, sensitivity)
+    persistent = apply_persistence(flags, max(1, int(min_duration)))
+    mask = runtime["mask"]
+
+    tp = int(np.sum(flags & mask))
+    fp = int(np.sum(flags & ~mask))
+    fn = int(np.sum(~flags & mask))
+    precision = tp / (tp + fp) if tp + fp else 0.0
+    recall = tp / (tp + fn) if tp + fn else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+
+    detected_episodes = group_episodes(persistent, runtime["steps"], episode_gap)
+    true_episodes = runtime["anomalies"]
+    matched = [any(overlaps(window, episode, tolerance) for episode in detected_episodes) for window in true_episodes]
+    tp_eps = sum(matched)
+    fn_eps = len(true_episodes) - tp_eps
+    fp_eps = sum(
+        1 for episode in detected_episodes
+        if not any(overlaps(episode, window, tolerance) for window in true_episodes)
+    )
+    p_eps = tp_eps / (tp_eps + fp_eps) if tp_eps + fp_eps else 0.0
+    r_eps = tp_eps / (tp_eps + fn_eps) if tp_eps + fn_eps else 0.0
+    f1_eps = 2 * p_eps * r_eps / (p_eps + r_eps) if p_eps + r_eps else 0.0
+
+    return {
+        "sensitivity": round(float(sensitivity), 4),
+        "threshold": round(threshold_for(runtime, sensitivity), 6),
+        "tolerance": int(tolerance),
+        "min_duration": int(min_duration),
+        "episode_gap": int(episode_gap),
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(f1, 4),
+        "episode_precision": round(p_eps, 4),
+        "episode_recall": round(r_eps, 4),
+        "episode_f1": round(f1_eps, 4),
+        "flagged_points": int(flags.sum()),
+        "detected_points": int(persistent.sum()),
+        "true_positive_points": tp,
+        "false_positive_points": fp,
+        "false_negative_points": fn,
+        "detected_episodes": len(detected_episodes),
+        "true_episodes": len(true_episodes),
+        "true_positive_episodes": int(tp_eps),
+        "false_positive_episodes": int(fp_eps),
+        "false_negative_episodes": int(fn_eps),
+        "windows": [
+            {
+                "start": start,
+                "end": end,
+                "detected": bool(flag),
+                "length": int(end - start + 1),
+            }
+            for (start, end), flag in zip(true_episodes, matched)
+        ],
+    }
+
+
+def build_telemetry(runtime: dict, every: int) -> dict:
+    indices = np.arange(0, len(runtime["actual"]), max(1, every))
+    points = [
+        {
+            "step": int(runtime["steps"][i]),
+            "actual": round(float(runtime["actual"][i]), 4),
+            "predicted": round(float(runtime["predictions"][i]), 4),
+            "error": round(float(runtime["errors"][i]), 4),
+            "isTrueAnomaly": bool(runtime["mask"][i]),
+        }
+        for i in indices
+    ]
+    return {
+        "sensor_id": runtime["sensor_id"],
+        "spacecraft": runtime["spacecraft"],
+        "window_size": runtime["window"],
+        "model_file": STATE["model_file"],
+        "every": max(1, every),
+        "stats": {
+            "mean_error": round(runtime["mean_error"], 6),
+            "std_error": round(runtime["std_error"], 6),
+            "ref_mean": round(runtime["ref_mean"], 6),
+            "ref_std": round(runtime["ref_std"], 6),
+            "anomaly_ratio": round(runtime["anomaly_ratio"], 3),
+            "optimal_sensitivity": STATE.get("optimal_sensitivity"),
+            "optimal_f1": STATE.get("optimal_f1"),
+        },
+        "true_anomalies": [list(window) for window in runtime["anomalies"]],
+        "data": points,
+    }
+
+
+def build_threshold_curve(runtime: dict, tolerance: int, min_duration: int = MIN_DURATION) -> dict:
+    points = []
+    for sensitivity in np.arange(0.5, 10.0 + 1e-9, 0.25):
+        metrics = compute_metrics(runtime, float(sensitivity), tolerance, min_duration)
+        points.append({
+            "sensitivity": metrics["sensitivity"],
+            "threshold": metrics["threshold"],
+            "precision": metrics["precision"],
+            "recall": metrics["recall"],
+            "f1": metrics["f1"],
+            "episode_f1": metrics["episode_f1"],
+        })
+    best = max(points, key=lambda item: item["f1"])
+    return {"points": points, "best": best}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    STATE["started_at"] = time.time()
+    STATE["model"], STATE["model_file"] = load_any_model()
+    with open(os.path.join(BASE_DIR, f"sensor_{SENSOR_ID}_data.json"), encoding="utf-8") as handle:
+        raw = json.load(handle)
+    runtime = build_runtime(raw)
+    curve = build_threshold_curve(runtime, DEFAULT_TOLERANCE)
+    STATE["runtime"] = runtime
+    STATE["optimal_sensitivity"] = curve["best"]["sensitivity"]
+    STATE["optimal_f1"] = curve["best"]["f1"]
+    yield
+    STATE.clear()
+
+
+app = FastAPI(
+    title="NASA Spacecraft Anomaly Detection API",
+    description=(
+        "LSTM forecasting API trained on real NASA SMAP telemetry. "
+        "Prediction errors above a tunable threshold are flagged as anomalies "
+        "and compared against the anomaly windows labelled by NASA JPL engineers."
+    ),
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/", tags=["meta"])
+def root() -> dict:
+    return {
+        "name": "NASA Spacecraft Anomaly Detection API",
+        "version": app.version,
+        "sensor": SENSOR_ID,
+        "docs": "/docs",
+        "endpoints": [
+            "/api/health",
+            "/api/model-info",
+            "/api/telemetry/{sensor_id}",
+            "/api/anomalies",
+            "/api/metrics",
+            "/api/threshold-curve",
+            "/api/benchmark",
+        ],
+    }
+
+
+@app.get("/api/health", tags=["meta"])
+def health() -> dict:
+    return {
+        "status": "ok",
+        "model_file": STATE.get("model_file"),
+        "sensor": SENSOR_ID,
+        "points": int(len(STATE["runtime"]["actual"])) if STATE.get("runtime") else 0,
+        "uptime_seconds": round(time.time() - STATE.get("started_at", time.time()), 1),
+    }
+
+
+@app.get("/api/model-info", tags=["meta"])
+def model_info() -> dict:
+    runtime = STATE["runtime"]
+    return {
+        "sensor_id": runtime["sensor_id"],
+        "spacecraft": runtime["spacecraft"],
+        "window_size": runtime["window"],
+        "model_file": STATE["model_file"],
+        "stats": {
+            "mean_error": round(runtime["mean_error"], 6),
+            "std_error": round(runtime["std_error"], 6),
+            "ref_mean": round(runtime["ref_mean"], 6),
+            "ref_std": round(runtime["ref_std"], 6),
+            "anomaly_ratio": round(runtime["anomaly_ratio"], 3),
+            "optimal_sensitivity": STATE.get("optimal_sensitivity"),
+            "optimal_f1": STATE.get("optimal_f1"),
+        },
+        "true_anomalies": [list(window) for window in runtime["anomalies"]],
+        "benchmark": BENCHMARK,
+    }
+
+
+@app.get("/api/telemetry/{sensor_id}", tags=["telemetry"])
+def telemetry(
+    sensor_id: str,
+    every: int = Query(DEFAULT_EVERY, ge=1, le=20, description="Down-sampling step"),
+) -> dict:
+    if sensor_id.upper() != SENSOR_ID.upper():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Sensor '{sensor_id}' is not loaded. Available sensor: {SENSOR_ID}.",
+        )
+    return build_telemetry(STATE["runtime"], every)
+
+
+@app.get("/api/anomalies", tags=["detection"])
+def anomalies(
+    sensitivity: float = Query(DEFAULT_SENSITIVITY, ge=0.0, le=20.0),
+    min_duration: int = Query(MIN_DURATION, ge=1, le=500),
+) -> dict:
+    runtime = STATE["runtime"]
+    flags = detected_mask(runtime, sensitivity)
+    persistent = apply_persistence(flags, int(min_duration))
+    episodes = group_episodes(persistent, runtime["steps"])
+    return {
+        "sensor_id": runtime["sensor_id"],
+        "sensitivity": round(float(sensitivity), 4),
+        "threshold": round(threshold_for(runtime, sensitivity), 6),
+        "min_duration": int(min_duration),
+        "true_windows": compute_metrics(runtime, sensitivity, min_duration=int(min_duration))["windows"],
+        "detected_episodes": [{"start": start, "end": end} for start, end in episodes],
+    }
+
+
+@app.get("/api/metrics", tags=["detection"])
+def metrics(
+    sensitivity: float = Query(DEFAULT_SENSITIVITY, ge=0.0, le=20.0),
+    tolerance: int = Query(DEFAULT_TOLERANCE, ge=0, le=500),
+    min_duration: int = Query(MIN_DURATION, ge=1, le=500),
+) -> dict:
+    return compute_metrics(STATE["runtime"], sensitivity, tolerance, int(min_duration))
+
+
+@app.get("/api/threshold-curve", tags=["detection"])
+def threshold_curve(
+    tolerance: int = Query(DEFAULT_TOLERANCE, ge=0, le=500),
+    min_duration: int = Query(MIN_DURATION, ge=1, le=500),
+) -> dict:
+    return build_threshold_curve(STATE["runtime"], tolerance, int(min_duration))
+
+
+@app.get("/api/benchmark", tags=["meta"])
+def benchmark() -> dict:
+    return {
+        "description": "Forecast-error separability screened across eight NASA telemanom channels.",
+        "selected": SENSOR_ID,
+        "channels": BENCHMARK,
+    }
