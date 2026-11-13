@@ -1,16 +1,34 @@
-# React + Vite
+# Frontend — Mission Control Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + Vite dashboard for the NASA spacecraft anomaly detection API. It plots the SMAP
+telemetry channel against LSTM forecasts, visualises NASA-labelled anomaly windows, and lets the
+user tune the alarm threshold in real time.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Live threshold slider (`1σ` – `8σ`) with instant precision / recall / F1 updates
+- Point-level and episode-level metrics with a persistence filter
+- Sensor signal vs LSTM forecast chart with anomaly bands
+- Prediction-error chart with the current alarm threshold
+- Detection diagnostics chart (F1 as a function of sensitivity)
+- Cold-start handling for the free-tier backend
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev      # development server on http://localhost:5173
+npm run build    # production bundle in dist/
+npm run lint     # Oxlint
+npm run preview  # preview the production build
+```
 
-## Expanding the Oxlint configuration
+## Configuration
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Create `.env.local` (or set the variable in your hosting provider):
+
+```env
+VITE_API_URL=https://your-backend-url
+```
+
+If the variable is missing, the app falls back to `http://localhost:8000`.
