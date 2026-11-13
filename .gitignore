@@ -22,3 +22,7 @@ Thumbs.db
 data/
 data.zip
 artifacts*.zip
+
+# Local-only documentation (PDF export stays off GitHub)
+docs/*.pdf
+*.pdf
