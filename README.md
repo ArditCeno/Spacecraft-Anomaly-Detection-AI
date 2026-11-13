@@ -5,7 +5,7 @@ normal SMAP satellite behaviour, forecasts the next telemetry sample from a slid
 flags deviations whose prediction error exceeds a tunable threshold. Predictions are served by a
 FastAPI backend and explored through an interactive React mission-control dashboard.
 
-> Screenshots and live URLs are added after the deployment phase.
+![Mission control dashboard](docs/dashboard.png)
 
 ## Highlights
 
@@ -30,6 +30,19 @@ FastAPI backend and explored through an interactive React mission-control dashbo
 | Episode precision / recall / F1 @ 3σ | 1.000 / 1.000 / **1.000** |
 | Training samples | 2,849 (2,799 windows) |
 | Test samples | 8,509 (8,459 windows) |
+
+## Dashboard
+
+The React dashboard turns the raw forecast into a decision surface:
+
+- **Alarm sensitivity slider** — moves the threshold between `1σ` and `8σ` and recomputes point
+  precision / recall / F1 and episode recall instantly. A one-click button jumps to the
+  empirically optimal multiplier (`6σ`, F1 `0.941`).
+- **Signal vs forecast** — actual telemetry (cyan) against the LSTM forecast (dashed emerald),
+  with NASA-labelled windows shaded and detected episodes outlined.
+- **Error chart** — the residual `|actual − predicted|` with the active threshold overlaid.
+- **Diagnostics** — F1 across every sensitivity, plus reference statistics and detection
+  configuration, so the trade-off between false alarms and missed anomalies is explicit.
 
 ## Architecture
 
@@ -129,13 +142,18 @@ OpenAPI documentation: `http://localhost:8000/docs`.
 │   ├── scaler.pkl               # MinMaxScaler
 │   ├── sensor_D-1_data.json     # scaled test series + NASA anomaly labels
 │   ├── requirements.txt
-│   ├── Dockerfile
+│   ├── Dockerfile               # Hugging Face Spaces image
 │   └── scripts/verify_model.py
-├── frontend/                    # React + Vite + Tailwind dashboard
+├── frontend/
+│   ├── src/App.jsx              # dashboard component
+│   ├── src/index.css            # Tailwind entry point
+│   ├── tailwind.config.js
+│   └── vite.config.js
 ├── training/
 │   ├── train.py                 # reproducible training script
 │   ├── screen_channels.py       # channel benchmark
 │   └── training_history.json
+├── docs/dashboard.png           # rendered dashboard
 └── README.md
 ```
 
@@ -156,6 +174,7 @@ Verify the artefact without starting the server:
 
 ```bash
 python scripts/verify_model.py
+# [PASS] nasa_lstm_model.keras anomaly_ratio=19.24 (minimum 5.0)
 ```
 
 ### Frontend
