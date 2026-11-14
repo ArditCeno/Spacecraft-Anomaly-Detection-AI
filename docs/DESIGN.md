@@ -46,10 +46,11 @@ decorative element, and it is dimmed, lazy-loaded and switchable.
 
 ## Frosted console
 
-The dashboard fills the viewport and the five metrics are centred. A single `backdrop-blur-md`
+The dashboard fills the viewport and the five metrics are centred. A single `backdrop-blur-lg`
 layer covers the solar-system scene; chart panels and metric cells use a darker translucent
-sub-layer so data never sits directly on a bright planet. This keeps the glass look without the
-common failure mode of low-contrast charts over a busy backdrop.
+sub-layer so data never sits directly on a bright planet. The explainer dialog reuses the same
+treatment with a second translucent layer for its scrolling body. This keeps the glass look
+without the common failure mode of low-contrast charts over a busy backdrop.
 
 ## Guided explainer
 
@@ -57,6 +58,14 @@ A `What am I looking at?` button in the header opens a native `<dialog>` (focus 
 Escape handling come from the platform). It defines the two lines, the anomaly band, the threshold
 formula, point versus episode metrics, the dataset and links to the source. The dialog shares the
 frosted styling and scrolls inside the viewport.
+
+## Observatory
+
+Below the dashboard a full-viewport section removes the glass entirely. Only the solar-system
+backdrop, a short provenance line, the license credit, a motion toggle and a return link remain.
+Neutral scrims at the top and bottom blend the section into the page without covering the planets.
+The backdrop is still the same fixed iframe, so scrolling reveals it instead of loading a second
+scene.
 
 ## Typography and colour
 

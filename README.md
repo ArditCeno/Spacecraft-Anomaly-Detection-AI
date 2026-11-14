@@ -210,10 +210,17 @@ Operational details:
   NASA window shaded and the detected episode outlined.
 - **Error chart**: the residual with the active threshold overlaid.
 - **Diagnostics**: F1 across every sensitivity plus reference statistics and detection settings.
-- **Guided explainer**: a "What am I looking at?" dialog explains the signal, anomaly band,
+- **Guided explainer**: a frosted "What am I looking at?" dialog explains the signal, anomaly band,
   threshold formula and every metric.
+- **Observatory**: a full-screen section below the dashboard where the glass panels end and only the
+  solar-system backdrop, data provenance and motion control remain.
 - **Backdrop**: an optional Sketchfab solar-system scene behind a frosted console, with a motion
   toggle, reduced-motion support, lazy loading and a starfield fallback.
+
+![Observatory section](docs/observatory.png)
+
+*A full-viewport section below the dashboard: only the solar-system backdrop, provenance and
+controls remain.*
 
 Visual decisions are documented in [docs/DESIGN.md](docs/DESIGN.md).
 
@@ -300,6 +307,7 @@ best point F1=0.9405 at sensitivity=6.00
 ├── docs/
 │   ├── dashboard.png
 │   ├── explainer.png
+│   ├── observatory.png
 │   ├── DESIGN.md
 │   └── DEPLOYMENT.md
 ├── .github/workflows/ci.yml     # build, tests and dependency audits
