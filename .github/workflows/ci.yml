@@ -32,4 +32,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python -m py_compile backend/main.py backend/scripts/verify_model.py training/train.py training/screen_channels.py
+      - run: python -m py_compile backend/main.py backend/config.py backend/security.py backend/scripts/verify_model.py training/train.py training/screen_channels.py
+
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet pip-audit
+      - run: pip-audit -r backend/requirements.txt --ignore-vuln PYSEC-2026-1805
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm audit --audit-level=high
+        working-directory: frontend
