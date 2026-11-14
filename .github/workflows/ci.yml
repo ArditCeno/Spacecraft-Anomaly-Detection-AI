@@ -24,15 +24,26 @@ jobs:
       - run: npm run lint
       - run: npm run build
 
-  backend-syntax:
-    name: Python syntax check
+  backend:
+    name: Python checks and telemetry artifact
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python -m py_compile backend/main.py backend/config.py backend/security.py backend/scripts/verify_model.py training/train.py training/screen_channels.py
+      - run: python -m py_compile backend/main.py backend/config.py backend/security.py training/train.py training/screen_channels.py training/export_predictions.py
+      - run: |
+          python - <<'PY'
+          import json
+          payload = json.load(open("backend/telemetry_D-1.json", encoding="utf-8"))
+          points = payload["points"]
+          assert payload["sensor_id"] == "D-1", payload.get("sensor_id")
+          assert len(points) == 8459, len(points)
+          assert payload["model"]["inference"] == "precomputed"
+          assert payload["stats"]["ref_std"] > 0
+          print(f"telemetry ok: {len(points)} points, ratio {payload['stats']['anomaly_ratio']}")
+          PY
 
   dependency-audit:
     name: Dependency audit
@@ -43,7 +54,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install --quiet pip-audit
-      - run: pip-audit -r backend/requirements.txt --ignore-vuln PYSEC-2026-1805
+      - run: pip-audit -r backend/requirements.txt
       - uses: actions/setup-node@v4
         with:
           node-version: 20
