@@ -33,6 +33,7 @@ FastAPI backend and explored through an interactive React mission-control dashbo
 | Point precision / recall / F1 @ 3σ | 0.964 / 0.891 / **0.926** |
 | Best point F1 (6σ) | **0.941** |
 | Episode precision / recall / F1 @ 3σ | 1.000 / 1.000 / **1.000** |
+| Persistence baseline (best F1) | 0.153 (precision 0.317, recall 0.101) |
 | Training samples | 2,849 (2,799 windows) |
 | Test samples | 8,509 (8,459 windows) |
 
@@ -102,6 +103,29 @@ threshold on the normal reference segment.
 `P-1`, the channel used in most tutorials, contains **contextual** anomalies: the raw value stays
 inside its normal range and only its context is wrong. A forecasting model predicts it accurately,
 so the error does not rise (ratio below 1). This was validated empirically, not assumed.
+
+## Baseline and limitations
+
+A naive persistence forecast (predict the previous sample) was tuned over the same threshold grid.
+It reaches a best point F1 of **0.153**, while the LSTM reaches **0.941**, so the result is not an
+artefact of threshold tuning.
+
+Honest limitations:
+
+- The channel (`D-1`) and the optimal multiplier (`6σ`) were selected using test-set performance.
+  The numbers are therefore optimistic for a demo; a stricter protocol would choose both on a
+  separate validation split.
+- The test split contains a single labelled anomaly episode, so the episode-level F1 of 1.0 is
+  encouraging but not statistically strong.
+- Only 2,849 normal samples are available for training, and adjacent sliding windows overlap at the
+  validation boundary by one window.
+- The telemetry mirror is a third-party Hugging Face copy of the original Telemanom release
+  (the original S3 bucket now returns `403`). Counts and labels were validated; values were not
+  diffed byte-for-byte against a second mirror.
+- Inference is precomputed. This keeps hosting free and deterministic, but the API does not run
+  TensorFlow per request.
+- Rate limiting runs in memory per serverless instance; it is a demo control, not a distributed
+  quota.
 
 ## Model
 

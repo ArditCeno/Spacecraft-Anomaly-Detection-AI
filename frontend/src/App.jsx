@@ -226,7 +226,7 @@ function AboutDialog({ dialogRef }) {
     <dialog
       ref={dialogRef}
       aria-labelledby="about-title"
-      className="about-dialog flex max-h-[86vh] w-[min(760px,92vw)] flex-col rounded-md border border-white/10 bg-slate-950/85 p-0 text-slate-200 shadow-2xl shadow-black/70 backdrop-blur-xl"
+      className="about-dialog max-h-[86vh] w-[min(760px,92vw)] rounded-md border border-white/10 bg-slate-950/85 p-0 text-slate-200 shadow-2xl shadow-black/70 backdrop-blur-xl open:flex open:flex-col"
     >
       <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 px-6 py-4">
         <div>
