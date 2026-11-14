@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Area,
   AreaChart,
@@ -22,7 +22,6 @@ const MIN_DURATION = 3
 const EPISODE_GAP = 50
 
 const INK = '#070b12'
-const PANEL = '#0b111a'
 const RULE = '#1b2532'
 const MOTION_KEY = 'spacecraft-dashboard.motion'
 const SKETCHFAB_MODEL = '178d1deb210a4bc4a63ee05bc6cb6dcf'
@@ -117,7 +116,7 @@ function ChartTooltip({ active, payload, label }) {
 
 function Metric({ label, value, sub }) {
   return (
-    <div className="px-5 py-5 text-center" style={{ backgroundColor: PANEL }}>
+    <div className="px-5 py-5 text-center" style={{ backgroundColor: 'rgba(2,6,12,0.22)' }}>
       <div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{label}</div>
       <div className="mt-1.5 font-mono text-2xl text-slate-100">{value}</div>
       <div className="mt-1 text-[11px] text-slate-400">{sub}</div>
@@ -189,7 +188,7 @@ function SpaceBackdrop({ showIframe, motion, loaded, onLoad }) {
           onLoad={onLoad}
           className="absolute inset-0 h-full w-full border-0"
           style={{
-            opacity: loaded ? 0.62 : 0,
+            opacity: loaded ? 0.74 : 0,
             transform: 'scale(1.2) translateX(12%)',
             transformOrigin: 'center',
             filter: 'brightness(0.9) saturate(0.95)',
@@ -221,6 +220,87 @@ function SpaceBackdrop({ showIframe, motion, loaded, onLoad }) {
   )
 }
 
+
+function AboutDialog({ dialogRef }) {
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="about-title"
+      className="about-dialog w-[min(760px,92vw)] rounded-md border border-white/10 bg-slate-950/85 p-0 text-slate-200 shadow-2xl shadow-black/70 backdrop-blur-xl"
+    >
+      <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-4">
+        <div>
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-300">mission brief</p>
+          <h2 id="about-title" className="mt-1 text-xl font-semibold text-slate-100">
+            What am I looking at?
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={() => dialogRef.current?.close()}
+          className="border border-white/15 px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider text-slate-300 hover:bg-white/5"
+        >
+          close
+        </button>
+      </div>
+      <div className="max-h-[70vh] space-y-5 overflow-y-auto px-6 py-5 text-sm leading-relaxed text-slate-300">
+        <p>
+          This is a mission-control view of one real telemetry channel from NASA's SMAP satellite. An
+          LSTM network was trained only on normal operation and forecasts the next sample from the
+          previous 50 samples. The distance between the forecast and reality is the anomaly signal.
+        </p>
+        <div>
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">How to read it</h3>
+          <ul className="mt-2 list-disc space-y-1.5 pl-5">
+            <li>The cyan line is the real sensor value. The grey dashed line is the LSTM forecast.</li>
+            <li>The shaded band is the anomaly window labelled by NASA JPL engineers. The red outline is the episode the alarm detected.</li>
+            <li>The slider moves the alarm threshold: <span className="font-mono">reference mean + k x reference std</span>, computed on the first 40% of the test split.</li>
+            <li>The second chart shows the prediction error and the active threshold. Everything above the dashed line is flagged.</li>
+          </ul>
+        </div>
+        <div>
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">Metrics</h3>
+          <dl className="mt-2 space-y-2">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+              <dt className="text-slate-400">Episodes detected</dt>
+              <dd>Labelled anomaly windows caught by the alarm, out of the total.</dd>
+            </div>
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+              <dt className="text-slate-400">Precision / recall</dt>
+              <dd>Point-level scores over all 8,459 test samples.</dd>
+            </div>
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+              <dt className="text-slate-400">Point vs episode F1</dt>
+              <dd>Episode F1 counts an alarm as correct when it overlaps a labelled window within +/-25 samples.</dd>
+            </div>
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+              <dt className="text-slate-400">Error ratio</dt>
+              <dd>Mean error inside anomalies divided by mean error during normal operation (18.6x).</dd>
+            </div>
+          </dl>
+        </div>
+        <div>
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">Data and model</h3>
+          <p className="mt-2">
+            Dataset: Telemanom (Hundman et al., KDD 2018), channel D-1, 8,509 test samples with one
+            labelled anomaly between steps 5,250 and 8,508. Model: two stacked LSTM layers (64 and 32
+            units) with dropout, trained on 2,849 normal samples. Forecasts are precomputed once and
+            replayed by FastAPI, which keeps this demo free to host.
+          </p>
+        </div>
+        <div>
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">Links</h3>
+          <ul className="mt-2 space-y-1.5">
+            <li><a className="text-cyan-300 underline decoration-cyan-900 underline-offset-4 hover:text-cyan-200" href="https://github.com/ArditCeno/Spacecraft-Anomaly-Detection-AI" target="_blank" rel="noreferrer noopener">Source code and full documentation</a></li>
+            <li><a className="text-cyan-300 underline decoration-cyan-900 underline-offset-4 hover:text-cyan-200" href="https://github.com/khundman/telemanom" target="_blank" rel="noreferrer noopener">Telemanom dataset and paper</a></li>
+            <li><a className="text-cyan-300 underline decoration-cyan-900 underline-offset-4 hover:text-cyan-200" href="https://huggingface.co/datasets/appleparan/telemanom" target="_blank" rel="noreferrer noopener">Telemetry mirror used for training</a></li>
+          </ul>
+        </div>
+      </div>
+    </dialog>
+  )
+}
+
 export default function App() {
   const [telemetry, setTelemetry] = useState(null)
   const [curve, setCurve] = useState(null)
@@ -239,6 +319,7 @@ export default function App() {
   const [backdropFailed, setBackdropFailed] = useState(false)
   const [backdropLoaded, setBackdropLoaded] = useState(false)
   const [tabVisible, setTabVisible] = useState(() => !document.hidden)
+  const aboutRef = useRef(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -374,10 +455,11 @@ export default function App() {
         loaded={backdropLoaded}
         onLoad={() => setBackdropLoaded(true)}
       />
+      <AboutDialog dialogRef={aboutRef} />
       <div className="relative z-10 w-full px-3 py-6 sm:px-5 lg:px-6">
         <div className="w-full">
-        <div className="w-full border" style={{ borderColor: RULE }}>
-          <header className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between" style={{ background: 'linear-gradient(180deg, rgba(7,11,18,0.20) 0%, rgba(7,11,18,0.62) 100%)' }}>
+        <div className="w-full rounded-md border border-white/10 bg-slate-950/55 shadow-2xl shadow-black/60 backdrop-blur-md">
+          <header className="flex flex-col gap-6 bg-gradient-to-b from-white/[0.05] to-slate-950/40 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
                 nasa {spacecraft.toLowerCase()} / telemanom
@@ -389,6 +471,13 @@ export default function App() {
                 An LSTM forecasts the next telemetry sample from the previous {telemetry.window_size} samples.
                 The distance between forecast and reality drives the alarm.
               </p>
+              <button
+                type="button"
+                onClick={() => aboutRef.current?.showModal()}
+                className="mt-3 border-b border-cyan-800 pb-0.5 font-mono text-xs text-cyan-300 hover:text-cyan-200"
+              >
+                what am I looking at?
+              </button>
             </div>
             <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-1.5 font-mono text-[11px]">
               <dt className="text-slate-400">status</dt>
@@ -415,7 +504,7 @@ export default function App() {
             </dl>
           </header>
 
-          <div className="grid grid-cols-2 gap-px border-t sm:grid-cols-3 lg:grid-cols-5" style={{ borderColor: RULE, backgroundColor: RULE }}>
+          <div className="grid grid-cols-2 gap-px border-t sm:grid-cols-3 lg:grid-cols-5" style={{ borderColor: 'rgba(148,163,184,0.18)', backgroundColor: 'rgba(148,163,184,0.18)' }}>
             <Metric
               label="episodes detected"
               value={`${metrics.detectedWindows} / ${metrics.windows.length}`}
@@ -443,7 +532,7 @@ export default function App() {
             />
           </div>
 
-          <section className="border-t px-6 py-5" style={{ borderColor: RULE, backgroundColor: PANEL }}>
+          <section className="border-t px-6 py-5" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.35)' }}>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
@@ -486,7 +575,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="border-t px-6 py-6" style={{ borderColor: RULE, backgroundColor: PANEL }}>
+          <section className="border-t px-6 py-6" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.35)' }}>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
@@ -503,7 +592,7 @@ export default function App() {
                 <LegendItem color="#fb7185" label="anomaly" />
               </div>
             </div>
-            <div className="h-72 w-full">
+            <div className="h-72 w-full rounded-sm bg-slate-950/25 p-1">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -14 }}>
                   <CartesianGrid stroke={RULE} strokeDasharray="2 4" />
@@ -567,7 +656,7 @@ export default function App() {
             </div>
           </section>
 
-          <div className="grid border-t lg:grid-cols-3" style={{ borderColor: RULE, backgroundColor: PANEL }}>
+          <div className="grid border-t lg:grid-cols-3" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.35)' }}>
             <section className="border-b px-6 py-6 lg:col-span-2 lg:border-b-0 lg:border-r" style={{ borderColor: RULE }}>
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
                 Prediction error and threshold
@@ -576,7 +665,7 @@ export default function App() {
                 error = absolute difference between actual and predicted. Everything above the dashed line
                 is flagged.
               </p>
-              <div className="mt-4 h-56 w-full">
+              <div className="mt-4 h-56 w-full rounded-sm bg-slate-950/25 p-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -14 }}>
                     <defs>
@@ -642,7 +731,7 @@ export default function App() {
                 Detection diagnostics
               </h2>
               <p className="mt-1 text-sm text-slate-400">F1 across every threshold multiplier.</p>
-              <div className="mt-4 h-36 w-full">
+              <div className="mt-4 h-36 w-full rounded-sm bg-slate-950/20 p-1">
                 {curve ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={curve.points} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
@@ -716,7 +805,7 @@ export default function App() {
             </section>
           </div>
 
-          <footer className="border-t px-6 py-4 text-[11px] leading-relaxed text-slate-400" style={{ borderColor: RULE, backgroundColor: PANEL }}>
+          <footer className="border-t px-6 py-4 text-[11px] leading-relaxed text-slate-400" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.35)' }}>
             <p>
               Telemetry from the NASA SMAP channel D-1, distributed with the Telemanom dataset (Hundman et
               al., KDD 2018). Anomaly windows labelled by NASA JPL engineers.
