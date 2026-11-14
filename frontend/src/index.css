@@ -13,26 +13,10 @@ body,
 }
 
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
-  background-image:
-    radial-gradient(circle at 15% -10%, rgba(56, 189, 248, 0.12), transparent 45%),
-    radial-gradient(circle at 90% 0%, rgba(99, 102, 241, 0.12), transparent 40%);
-  background-attachment: fixed;
+  @apply bg-[#070b12] text-slate-200 antialiased;
 }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  @apply bg-slate-950;
-}
-
-::-webkit-scrollbar-thumb {
-  @apply rounded-full bg-slate-700;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-600;
+::selection {
+  background: #164e63;
+  color: #e2e8f0;
 }

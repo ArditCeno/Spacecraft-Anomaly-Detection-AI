@@ -1,17 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Activity,
-  AlertTriangle,
-  Cpu,
-  Gauge,
-  Radio,
-  RefreshCw,
-  Satellite,
-  ShieldCheck,
-  Sliders,
-  Sparkles,
-} from 'lucide-react'
-import {
   Area,
   AreaChart,
   CartesianGrid,
@@ -32,6 +20,10 @@ const CHART_EVERY = 3
 const TOLERANCE = 25
 const MIN_DURATION = 3
 const EPISODE_GAP = 50
+
+const INK = '#070b12'
+const PANEL = '#0b111a'
+const RULE = '#1b2532'
 
 const asPercent = (value) => `${(value * 100).toFixed(1)}%`
 
@@ -106,50 +98,39 @@ function computeMetrics(points, threshold, trueAnomalies) {
   }
 }
 
-function Card({ className = '', children }) {
-  return (
-    <section className={`rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 shadow-lg shadow-black/20 backdrop-blur ${className}`}>
-      {children}
-    </section>
-  )
-}
-
-function Kpi({ icon: Icon, label, value, sub, tone }) {
-  return (
-    <Card>
-      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-400">
-        <Icon className={`h-4 w-4 ${tone}`} />
-        {label}
-      </div>
-      <div className="mt-3 text-3xl font-semibold text-white">{value}</div>
-      <div className="mt-1 text-xs text-slate-500">{sub}</div>
-    </Card>
-  )
-}
-
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-xl">
-      <p className="mb-1 font-mono text-slate-300">step {label}</p>
+    <div className="border border-slate-700 bg-slate-950 px-3 py-2 text-xs">
+      <p className="mb-1 font-mono text-slate-400">step {label}</p>
       {payload.map((entry) => (
         <p key={entry.name} className="font-mono" style={{ color: entry.color }}>
-          {entry.name}: {typeof entry.value === 'number' ? entry.value.toFixed(4) : entry.value}
+          {entry.name} {typeof entry.value === 'number' ? entry.value.toFixed(4) : entry.value}
         </p>
       ))}
     </div>
   )
 }
 
-function LoadingScreen() {
+function Metric({ label, value, sub }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-950 text-slate-300">
-      <Satellite className="h-10 w-10 animate-pulse-slow text-cyan-400" />
-      <p className="text-sm">Loading NASA SMAP telemetry…</p>
-      <p className="max-w-sm text-center text-xs text-slate-500">
-        The free-tier backend may take up to 30 seconds to wake up after inactivity.
-      </p>
+    <div className="px-5 py-4" style={{ backgroundColor: PANEL }}>
+      <div className="text-[11px] uppercase tracking-[0.12em] text-slate-500">{label}</div>
+      <div className="mt-1.5 font-mono text-2xl text-slate-100">{value}</div>
+      <div className="mt-1 text-[11px] text-slate-500">{sub}</div>
     </div>
+  )
+}
+
+function LegendItem({ color, label, dashed = false }) {
+  return (
+    <span className="inline-flex items-center gap-2 font-mono text-[11px] text-slate-400">
+      <span
+        className="inline-block h-0 w-5 border-t"
+        style={{ borderColor: color, borderTopStyle: dashed ? 'dashed' : 'solid' }}
+      />
+      {label}
+    </span>
   )
 }
 
@@ -209,29 +190,34 @@ export default function App() {
     [telemetry],
   )
 
-  if (status === 'loading') return <LoadingScreen />
+  if (status === 'loading') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3" style={{ backgroundColor: INK }}>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-slate-500">acquiring telemetry</p>
+        <p className="max-w-sm px-6 text-center text-xs text-slate-600">
+          The free-tier backend can take up to 30 seconds to wake after inactivity.
+        </p>
+      </div>
+    )
+  }
 
   if (status === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6">
-        <Card className="max-w-lg">
-          <div className="flex items-center gap-3 text-rose-400">
-            <AlertTriangle className="h-6 w-6" />
-            <h1 className="text-lg font-semibold">Backend unavailable</h1>
-          </div>
-          <p className="mt-3 text-sm text-slate-400">{error}</p>
-          <p className="mt-2 text-xs text-slate-500">
-            Make sure the API is running at <span className="font-mono text-cyan-400">{API_URL}</span>.
-          </p>
+      <div className="flex min-h-screen items-center justify-center p-6" style={{ backgroundColor: INK }}>
+        <div className="w-full max-w-md border p-6" style={{ borderColor: RULE }}>
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-rose-400">link down</p>
+          <h1 className="mt-2 text-lg text-slate-100">Backend unavailable</h1>
+          <p className="mt-2 text-sm text-slate-400">{error}</p>
+          <p className="mt-2 font-mono text-xs text-slate-500">{API_URL}</p>
           <button
             type="button"
             onClick={retry}
-            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+            className="mt-5 border px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-cyan-300 transition-colors hover:bg-cyan-500/10"
+            style={{ borderColor: '#164e63' }}
           >
-            <RefreshCw className="h-4 w-4" />
-            Retry
+            retry
           </button>
-        </Card>
+        </div>
       </div>
     )
   }
@@ -239,340 +225,345 @@ export default function App() {
   const { stats, spacecraft } = telemetry
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="flex flex-col gap-4 border-b border-slate-800/80 pb-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
-              <Radio className="h-4 w-4 animate-pulse-slow" />
-              NASA {spacecraft} telemetry · telemanom
+    <div className="min-h-screen" style={{ backgroundColor: INK }}>
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <div className="border" style={{ borderColor: RULE, backgroundColor: PANEL }}>
+          <header className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                nasa {spacecraft.toLowerCase()} / telemanom
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100 sm:text-3xl">
+                Spacecraft Anomaly Detection AI
+              </h1>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
+                An LSTM forecasts the next telemetry sample from the previous {telemetry.window_size} samples.
+                The distance between forecast and reality drives the alarm.
+              </p>
             </div>
-            <h1 className="mt-2 text-3xl font-bold text-white sm:text-4xl">Spacecraft Anomaly Detection AI</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-400">
-              An LSTM forecasts the next telemetry sample from the previous {telemetry.window_size} samples.
-              Deviations between reality and forecast drive the anomaly alarm.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 font-medium text-emerald-300">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-              API online
-            </span>
-            <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 font-mono text-slate-300">
-              sensor {telemetry.sensor_id}
-            </span>
-            <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 font-mono text-slate-300">
-              LSTM · {telemetry.window_size}-step window
-            </span>
-          </div>
-        </header>
+            <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-1.5 font-mono text-[11px]">
+              <dt className="text-slate-500">status</dt>
+              <dd className="text-cyan-300">online</dd>
+              <dt className="text-slate-500">sensor</dt>
+              <dd className="text-slate-200">{telemetry.sensor_id}</dd>
+              <dt className="text-slate-500">window</dt>
+              <dd className="text-slate-200">{telemetry.window_size} samples</dd>
+              <dt className="text-slate-500">model</dt>
+              <dd className="text-slate-200">lstm 64 / 32</dd>
+              <dt className="text-slate-500">points</dt>
+              <dd className="text-slate-200">{telemetry.data.length.toLocaleString()}</dd>
+            </dl>
+          </header>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <Kpi
-            icon={AlertTriangle}
-            label="Anomaly episodes"
-            value={`${metrics.detectedWindows}/${metrics.windows.length}`}
-            sub={`${metrics.falseEpisodes} false alarms · persistence ≥ ${MIN_DURATION} samples`}
-            tone="text-rose-400"
-          />
-          <Kpi
-            icon={ShieldCheck}
-            label="Precision"
-            value={asPercent(metrics.precision)}
-            sub={`${metrics.tp} true / ${metrics.fp} false points`}
-            tone="text-emerald-400"
-          />
-          <Kpi
-            icon={Activity}
-            label="Recall"
-            value={asPercent(metrics.recall)}
-            sub={`${metrics.fn} missed anomaly points`}
-            tone="text-cyan-400"
-          />
-          <Kpi
-            icon={Gauge}
-            label="Point F1"
-            value={asPercent(metrics.f1)}
-            sub={`Episode F1 ${asPercent(metrics.episodeF1)}`}
-            tone="text-indigo-400"
-          />
-          <Kpi
-            icon={Cpu}
-            label="Error ratio"
-            value={`${stats.anomaly_ratio.toFixed(1)}×`}
-            sub={`optimal ${stats.optimal_sensitivity}σ → F1 ${(stats.optimal_f1 * 100).toFixed(1)}%`}
-            tone="text-amber-400"
-          />
-        </div>
+          <div className="grid grid-cols-2 gap-px border-t sm:grid-cols-3 lg:grid-cols-5" style={{ borderColor: RULE, backgroundColor: RULE }}>
+            <Metric
+              label="episodes detected"
+              value={`${metrics.detectedWindows} / ${metrics.windows.length}`}
+              sub={`${metrics.falseEpisodes} false alarms`}
+            />
+            <Metric
+              label="precision"
+              value={asPercent(metrics.precision)}
+              sub={`${metrics.tp} true / ${metrics.fp} false points`}
+            />
+            <Metric
+              label="recall"
+              value={asPercent(metrics.recall)}
+              sub={`${metrics.fn} missed points`}
+            />
+            <Metric
+              label="point f1"
+              value={asPercent(metrics.f1)}
+              sub={`episode f1 ${asPercent(metrics.episodeF1)}`}
+            />
+            <Metric
+              label="error ratio"
+              value={`${stats.anomaly_ratio.toFixed(1)}x`}
+              sub={`optimal ${stats.optimal_sensitivity} sigma`}
+            />
+          </div>
 
-        <Card>
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-3">
-              <Sliders className="mt-0.5 h-6 w-6 shrink-0 text-cyan-400" />
+          <section className="border-t px-6 py-5" style={{ borderColor: RULE }}>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-white">Alarm sensitivity</h2>
-                <p className="text-sm text-slate-400">
-                  Threshold = reference mean + k × reference std. Reference statistics come from the first 40% of
-                  the test split (known normal behaviour).
+                <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  alarm sensitivity
+                </h2>
+                <p className="mt-1 max-w-xl text-sm text-slate-400">
+                  threshold = reference mean + k x reference std. Reference statistics come from the first
+                  40% of the test split, before the labelled anomaly.
                 </p>
               </div>
-            </div>
-            <div className="flex w-full flex-col gap-3 lg:w-[420px]">
-              <div className="flex items-center gap-4">
-                <input
-                  type="range"
-                  min="1"
-                  max="8"
-                  step="0.1"
-                  value={sensitivity}
-                  onChange={(event) => setSensitivity(Number(event.target.value))}
-                  className="h-2 w-full cursor-pointer accent-cyan-400"
-                  aria-label="Threshold multiplier"
-                />
-                <span className="w-16 rounded-md bg-slate-800 px-2 py-1 text-center font-mono text-sm font-semibold text-cyan-300">
-                  {sensitivity.toFixed(1)}σ
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
-                <span className="font-mono">
-                  threshold <span className="text-slate-200">{threshold.toFixed(4)}</span> · flagged{' '}
-                  <span className="text-slate-200">{metrics.flaggedPoints}</span> points
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSensitivity(stats.optimal_sensitivity)}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1 font-medium text-cyan-300 transition hover:bg-cyan-500/20"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Jump to optimal ({stats.optimal_sensitivity}σ)
-                </button>
+              <div className="w-full lg:w-[400px]">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="1"
+                    max="8"
+                    step="0.1"
+                    value={sensitivity}
+                    onChange={(event) => setSensitivity(Number(event.target.value))}
+                    className="h-1 w-full cursor-pointer accent-cyan-400"
+                    aria-label="Threshold multiplier"
+                  />
+                  <span className="w-14 border px-2 py-1 text-center font-mono text-sm text-cyan-300" style={{ borderColor: RULE }}>
+                    {sensitivity.toFixed(1)}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-slate-500">
+                  <span>
+                    threshold {threshold.toFixed(4)} / flagged {metrics.flaggedPoints}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSensitivity(stats.optimal_sensitivity)}
+                    className="text-cyan-300 underline decoration-cyan-800 underline-offset-4 hover:text-cyan-200"
+                  >
+                    use optimal {stats.optimal_sensitivity}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
+          </section>
 
-        <Card>
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Sensor signal vs LSTM forecast</h2>
-              <p className="text-sm text-slate-400">
-                Shaded band = NASA-labelled anomaly · dashed outline = detected episode
-              </p>
+          <section className="border-t px-6 py-6" style={{ borderColor: RULE }}>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
+                  Sensor signal and forecast
+                </h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Shaded band is the anomaly window labelled by NASA. Dashed outline is the episode the
+                  alarm detected.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <LegendItem color="#22d3ee" label="actual" />
+                <LegendItem color="#94a3b8" label="predicted" dashed />
+                <LegendItem color="#fb7185" label="anomaly" />
+              </div>
             </div>
-            <div className="flex flex-wrap gap-4 text-xs text-slate-400">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-sky-400" /> actual
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" /> predicted
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-rose-500" /> anomaly window
-              </span>
-            </div>
-          </div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 6, right: 12, bottom: 0, left: -12 }}>
-                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="step"
-                  type="number"
-                  domain={['dataMin', 'dataMax']}
-                  stroke="#64748b"
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(value) => value.toLocaleString()}
-                  minTickGap={40}
-                />
-                <YAxis stroke="#64748b" tick={{ fontSize: 11 }} width={56} />
-                <Tooltip content={<ChartTooltip />} />
-                {metrics.windows.map((window) => (
-                  <ReferenceArea
-                    key={`true-${window.start}`}
-                    x1={window.start}
-                    x2={window.end}
-                    fill="#f43f5e"
-                    fillOpacity={0.08}
-                    ifOverflow="extendDomain"
-                  />
-                ))}
-                {metrics.episodes.map((episode) => (
-                  <ReferenceArea
-                    key={`episode-${episode.start}`}
-                    x1={episode.start}
-                    x2={episode.end}
-                    fill="#f43f5e"
-                    fillOpacity={0.05}
-                    stroke="#fb7185"
-                    strokeDasharray="4 4"
-                    ifOverflow="extendDomain"
-                  />
-                ))}
-                <Line
-                  type="monotone"
-                  dataKey="actual"
-                  name="actual"
-                  stroke="#38bdf8"
-                  strokeWidth={1.6}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="predicted"
-                  name="predicted"
-                  stroke="#34d399"
-                  strokeWidth={1.4}
-                  strokeDasharray="4 2"
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <Card className="xl:col-span-2">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-white">Prediction error and alarm threshold</h2>
-              <p className="text-sm text-slate-400">
-                Error = |actual − predicted|. Points above the dashed line are flagged.
-              </p>
-            </div>
-            <div className="h-64 w-full">
+            <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 6, right: 12, bottom: 0, left: -12 }}>
-                  <defs>
-                    <linearGradient id="errorFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -14 }}>
+                  <CartesianGrid stroke={RULE} strokeDasharray="2 4" />
                   <XAxis
                     dataKey="step"
                     type="number"
                     domain={['dataMin', 'dataMax']}
-                    stroke="#64748b"
-                    tick={{ fontSize: 11 }}
+                    stroke="#475569"
+                    tick={{ fontSize: 11, fontFamily: 'ui-monospace' }}
                     tickFormatter={(value) => value.toLocaleString()}
-                    minTickGap={40}
+                    minTickGap={48}
                   />
-                  <YAxis stroke="#64748b" tick={{ fontSize: 11 }} width={56} />
+                  <YAxis
+                    stroke="#475569"
+                    tick={{ fontSize: 11, fontFamily: 'ui-monospace' }}
+                    width={52}
+                  />
                   <Tooltip content={<ChartTooltip />} />
                   {metrics.windows.map((window) => (
                     <ReferenceArea
-                      key={`error-window-${window.start}`}
+                      key={`true-${window.start}`}
                       x1={window.start}
                       x2={window.end}
                       fill="#f43f5e"
-                      fillOpacity={0.06}
+                      fillOpacity={0.07}
                       ifOverflow="extendDomain"
                     />
                   ))}
-                  <Area
+                  {metrics.episodes.map((episode) => (
+                    <ReferenceArea
+                      key={`episode-${episode.start}`}
+                      x1={episode.start}
+                      x2={episode.end}
+                      fill="none"
+                      stroke="#fb7185"
+                      strokeDasharray="3 3"
+                      ifOverflow="extendDomain"
+                    />
+                  ))}
+                  <Line
                     type="monotone"
-                    dataKey="error"
-                    name="error"
-                    stroke="#f59e0b"
-                    strokeWidth={1.2}
-                    fill="url(#errorFill)"
+                    dataKey="actual"
+                    name="actual"
+                    stroke="#22d3ee"
+                    strokeWidth={1.5}
+                    dot={false}
                     isAnimationActive={false}
                   />
-                  <ReferenceLine
-                    y={threshold}
-                    stroke="#fb7185"
-                    strokeDasharray="5 4"
-                    strokeWidth={1.5}
-                    label={{ value: `${sensitivity.toFixed(1)}σ`, fill: '#fb7185', fontSize: 11, position: 'insideTopRight' }}
+                  <Line
+                    type="monotone"
+                    dataKey="predicted"
+                    name="predicted"
+                    stroke="#94a3b8"
+                    strokeWidth={1.2}
+                    strokeDasharray="4 3"
+                    dot={false}
+                    isAnimationActive={false}
                   />
-                </AreaChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </section>
 
-          <Card>
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-white">Detection diagnostics</h2>
-              <p className="text-sm text-slate-400">How the alarm behaves across sensitivities.</p>
-            </div>
-            <div className="h-40 w-full">
-              {curve ? (
+          <div className="grid border-t lg:grid-cols-3" style={{ borderColor: RULE }}>
+            <section className="border-b px-6 py-6 lg:col-span-2 lg:border-b-0 lg:border-r" style={{ borderColor: RULE }}>
+              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
+                Prediction error and threshold
+              </h2>
+              <p className="mt-1 text-sm text-slate-400">
+                error = absolute difference between actual and predicted. Everything above the dashed line
+                is flagged.
+              </p>
+              <div className="mt-4 h-56 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={curve.points} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                    <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
-                    <XAxis dataKey="sensitivity" stroke="#64748b" tick={{ fontSize: 10 }} />
-                    <YAxis stroke="#64748b" domain={[0, 1]} tick={{ fontSize: 10 }} width={40} />
+                  <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -14 }}>
+                    <defs>
+                      <linearGradient id="errorFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.28} />
+                        <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke={RULE} strokeDasharray="2 4" />
+                    <XAxis
+                      dataKey="step"
+                      type="number"
+                      domain={['dataMin', 'dataMax']}
+                      stroke="#475569"
+                      tick={{ fontSize: 11, fontFamily: 'ui-monospace' }}
+                      tickFormatter={(value) => value.toLocaleString()}
+                      minTickGap={48}
+                    />
+                    <YAxis
+                      stroke="#475569"
+                      tick={{ fontSize: 11, fontFamily: 'ui-monospace' }}
+                      width={52}
+                    />
                     <Tooltip content={<ChartTooltip />} />
-                    <Line
+                    {metrics.windows.map((window) => (
+                      <ReferenceArea
+                        key={`error-window-${window.start}`}
+                        x1={window.start}
+                        x2={window.end}
+                        fill="#f43f5e"
+                        fillOpacity={0.05}
+                        ifOverflow="extendDomain"
+                      />
+                    ))}
+                    <Area
                       type="monotone"
-                      dataKey="f1"
-                      name="point F1"
-                      stroke="#22d3ee"
-                      strokeWidth={1.8}
-                      dot={false}
+                      dataKey="error"
+                      name="error"
+                      stroke="#f59e0b"
+                      strokeWidth={1}
+                      fill="url(#errorFill)"
                       isAnimationActive={false}
                     />
-                    <Line
-                      type="monotone"
-                      dataKey="episode_f1"
-                      name="episode F1"
-                      stroke="#a78bfa"
-                      strokeWidth={1.4}
-                      dot={false}
-                      isAnimationActive={false}
+                    <ReferenceLine
+                      y={threshold}
+                      stroke="#fb7185"
+                      strokeDasharray="4 4"
+                      strokeWidth={1.2}
+                      label={{
+                        value: `${sensitivity.toFixed(1)} sigma`,
+                        fill: '#fb7185',
+                        fontSize: 10,
+                        position: 'insideTopLeft',
+                      }}
                     />
-                    <ReferenceLine x={sensitivity} stroke="#fb7185" strokeDasharray="4 4" />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="flex h-full items-center justify-center text-xs text-slate-500">
-                  Threshold curve unavailable
-                </div>
-              )}
-            </div>
-            <dl className="mt-4 space-y-2 border-t border-slate-800 pt-4 text-xs">
-              <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Reference mean / std</dt>
-                <dd className="font-mono text-slate-300">
-                  {stats.ref_mean.toFixed(4)} / {stats.ref_std.toFixed(4)}
-                </dd>
               </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Episode tolerance</dt>
-                <dd className="font-mono text-slate-300">±{TOLERANCE} samples</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Episode merge gap</dt>
-                <dd className="font-mono text-slate-300">{EPISODE_GAP} samples</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Model artefact</dt>
-                <dd className="font-mono text-slate-300">{telemetry.model_file}</dd>
-              </div>
-            </dl>
-          </Card>
-        </div>
+            </section>
 
-        <footer className="border-t border-slate-800/80 pb-6 pt-5 text-xs text-slate-500">
-          <p>
-            Telemetry: NASA SMAP via the{' '}
-            <a
-              className="text-cyan-400 hover:text-cyan-300"
-              href="https://github.com/khundman/telemanom"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Telemanom
-            </a>{' '}
-            dataset (Hundman et al., KDD 2018). Anomaly windows labelled by NASA JPL engineers.
-          </p>
-          <p className="mt-1">
-            Point metrics evaluate every test sample; episode metrics count an alarm as correct when it overlaps a
-            labelled window within ±{TOLERANCE} samples.
-          </p>
-        </footer>
+            <section className="px-6 py-6">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
+                Detection diagnostics
+              </h2>
+              <p className="mt-1 text-sm text-slate-400">F1 across every threshold multiplier.</p>
+              <div className="mt-4 h-36 w-full">
+                {curve ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={curve.points} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
+                      <CartesianGrid stroke={RULE} strokeDasharray="2 4" />
+                      <XAxis
+                        dataKey="sensitivity"
+                        stroke="#475569"
+                        tick={{ fontSize: 10, fontFamily: 'ui-monospace' }}
+                      />
+                      <YAxis
+                        stroke="#475569"
+                        domain={[0, 1]}
+                        tick={{ fontSize: 10, fontFamily: 'ui-monospace' }}
+                        width={38}
+                      />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Line
+                        type="monotone"
+                        dataKey="f1"
+                        name="point f1"
+                        stroke="#22d3ee"
+                        strokeWidth={1.6}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="episode_f1"
+                        name="episode f1"
+                        stroke="#94a3b8"
+                        strokeWidth={1.1}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                      <ReferenceLine x={sensitivity} stroke="#fb7185" strokeDasharray="3 3" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center font-mono text-[11px] text-slate-600">
+                    curve unavailable
+                  </div>
+                )}
+              </div>
+              <dl className="mt-5 space-y-2 border-t pt-4 font-mono text-[11px]" style={{ borderColor: RULE }}>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-500">ref mean / std</dt>
+                  <dd className="text-slate-300">
+                    {stats.ref_mean.toFixed(4)} / {stats.ref_std.toFixed(4)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-500">persistence</dt>
+                  <dd className="text-slate-300">{MIN_DURATION} samples</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-500">match tolerance</dt>
+                  <dd className="text-slate-300">+/- {TOLERANCE} samples</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-500">merge gap</dt>
+                  <dd className="text-slate-300">{EPISODE_GAP} samples</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-500">artefact</dt>
+                  <dd className="truncate text-slate-300">{telemetry.model_file}</dd>
+                </div>
+              </dl>
+            </section>
+          </div>
+
+          <footer className="border-t px-6 py-4 text-[11px] leading-relaxed text-slate-500" style={{ borderColor: RULE }}>
+            <p>
+              Telemetry from the NASA SMAP channel D-1, distributed with the Telemanom dataset (Hundman et
+              al., KDD 2018). Anomaly windows labelled by NASA JPL engineers.
+            </p>
+            <p className="mt-1">
+              Point metrics score every test sample. Episode metrics count an alarm as correct when it
+              overlaps a labelled window within +/-{TOLERANCE} samples.
+            </p>
+          </footer>
+        </div>
       </div>
     </div>
   )
