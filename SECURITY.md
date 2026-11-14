@@ -22,7 +22,7 @@ supply-chain vulnerabilities. User-account and database threats do not exist in 
 | ------- | -------------- | -------- |
 | CORS allow-list | `backend/config.py` + `CORSMiddleware`, exact origins plus a `*.vercel.app` regex; only `GET`/`OPTIONS` | allowed origin returns `Access-Control-Allow-Origin`; unknown origin returns nothing |
 | Host header validation | `TrustedHostMiddleware` with configurable `ALLOWED_HOSTS` | `Host: evil.example` → `400` |
-| Rate limiting | In-memory sliding window per client IP (`RATE_LIMIT_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS`), proxy aware, returns `429` + `Retry-After` | 7 requests with limit 5 → `200 200 200 200 200 429 429` |
+| Rate limiting | In-memory sliding window per client IP (`RATE_LIMIT_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS`), proxy aware, returns `429` + `Retry-After`. On serverless, counters are per instance | 7 requests with limit 5 → `200 200 200 200 200 429 429` |
 | Security headers | `SecurityHeadersMiddleware`: `nosniff`, `X-Frame-Options: DENY`, `no-referrer`, Permissions-Policy, COOP, CORP, HSTS | confirmed with `curl -D -` |
 | Production CSP | `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` on API responses | confirmed in production mode |
 | Docs exposure | `/docs` and `/openapi.json` disabled when `ENVIRONMENT=production` | `404` |
@@ -32,7 +32,7 @@ supply-chain vulnerabilities. User-account and database threats do not exist in 
 | Frontend XSS | React escapes rendered values; no `dangerouslySetInnerHTML`; no user-generated content; CSP and headers in `frontend/vercel.json` | `frontend/vercel.json` |
 | Secrets | No credentials in the repository or in git history (scanned); `.env*` ignored except `.env.example`; no secret is exposed to Vite | `git grep` over all revisions |
 | Debug mode | `uvicorn` runs without `--reload` in the container; `--no-server-header` removes banner disclosure | `backend/Dockerfile` |
-| Transport | HTTPS terminated by Hugging Face Spaces and Vercel; HSTS sent; HTTP→HTTPS enforced by the platforms | platform behaviour |
+| Transport | HTTPS terminated by Vercel; HSTS sent; HTTP→HTTPS enforced by the platform | platform behaviour |
 | Supply chain | `npm audit` reports 0 vulnerabilities; `pip-audit` reviewed (see below) | audit output |
 
 ## Third-party embed
@@ -81,24 +81,21 @@ JWTs, CSRF tokens, parameterised queries, and row-level authorization checks on 
 ```text
 npm audit            → 0 vulnerabilities
 git secret scan      → no matches in working tree or history
-pip-audit            → protobuf 4.25.9 (PYSEC-2026-1805)
+pip-audit            → no vulnerabilities in the runtime requirements
 ```
 
-`PYSEC-2026-1805` is a denial-of-service issue in `google.protobuf.json_format.ParseDict()` when
-parsing deeply nested `Any` messages. This API **never parses protobuf from untrusted input**;
-protobuf is only used internally by TensorFlow for model weights. The advisory is therefore not
-exploitable here. TensorFlow 2.17.1 pins `protobuf<5`, so the patched release cannot be adopted
-without changing the TensorFlow version that the model artefact was validated against
-(`anomaly_ratio=19.24`). This trade-off is tracked and should be revisited when the model is
-retrained with a newer TensorFlow release.
+The runtime dependencies are `fastapi`, `numpy` and `uvicorn`. TensorFlow, scikit-learn and joblib
+were removed from the deployed service because inference is precomputed; they remain in the training
+environment only, which removes the large TensorFlow attack surface from the public deployment. CI
+runs `pip-audit` and `npm audit` on every push.
 
 ## Secret handling rules
 
 1. Never place a secret in a `VITE_*` variable: everything prefixed with `VITE_` is embedded in the
    public JavaScript bundle.
 2. Keep real `.env` files local; only `.env.example` files are committed.
-3. Hugging Face tokens are used only as a password for `git push` and are never written to disk by
-   this project.
+3. Hosting tokens (GitHub, Vercel) are used only in the provider dashboards or as `git push`
+   passwords and are never written to disk by this project.
 4. Rotate any token immediately if it is pasted into a chat, issue or commit.
 5. GitHub push protection and secret scanning should stay enabled on the repository.
 
@@ -109,10 +106,11 @@ retrained with a newer TensorFlow release.
 | `ENVIRONMENT` | `development` | Set to `production` on the Space (disables docs, enables CSP) |
 | `ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Exact CORS origins, comma separated |
 | `ALLOWED_ORIGIN_REGEX` | `https://[a-z0-9-]+\.vercel\.app` | Preview/production frontend hostnames |
-| `ALLOWED_HOSTS` | `localhost,127.0.0.1,testserver,*.hf.space` | Host header allow-list |
+| `ALLOWED_HOSTS` | `localhost,127.0.0.1,testserver,*.vercel.app` | Host header allow-list (add a custom domain here) |
 | `RATE_LIMIT_REQUESTS` | `120` | Requests allowed per window per IP |
 | `RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window length |
 | `DOCS_ENABLED` | `true` in development, `false` in production | Interactive OpenAPI docs |
+| `ENVIRONMENT` | `development` | Set by the Vercel deployment to `production` |
 
 ## Reporting
 

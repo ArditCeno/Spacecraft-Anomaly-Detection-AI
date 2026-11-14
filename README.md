@@ -16,8 +16,8 @@ FastAPI backend and explored through an interactive React mission-control dashbo
 - **Episode-level detection**: a persistence filter suppresses isolated spikes, so alarms are
   only raised for sustained deviations.
 - **Tunable sensitivity**: the dashboard slider recomputes precision, recall and F1 live.
-- **Production-shaped API**: cached inference at startup, typed query parameters, OpenAPI docs,
-  Docker image ready for Hugging Face Spaces.
+- **Zero-cost deployment**: the trained LSTM runs once during export, and FastAPI serves the
+  forecasts on Vercel with gzip, shared caching and a same-origin `/api` route.
 - **Optional 3D backdrop**: a Sketchfab solar-system scene, lazily embedded, dimmed behind the
   console, with a motion toggle and a CSS starfield fallback.
 
@@ -56,9 +56,11 @@ flowchart LR
     A[NASA Telemanom dataset] --> B[Colab / TensorFlow training]
     B --> C[LSTM 64 → 32 → Dense]
     B --> D[MinMaxScaler]
-    C --> E[(nasa_lstm_model.keras)]
-    E --> G[FastAPI backend]
-    G -->|REST + CORS| H[React + Tailwind dashboard]
+    C --> E[(model + scaler)]
+    E --> F[export_predictions.py]
+    F --> J[(telemetry_D-1.json)]
+    J --> G[FastAPI on Vercel services]
+    G -->|same-origin /api| H[React + Tailwind dashboard]
     H -->|threshold slider| G
 ```
 
@@ -104,6 +106,7 @@ so the error does not rise (ratio below 1). This was validated empirically, not 
 | Regularisation | Dropout + `EarlyStopping(patience=5, restore_best_weights=True)` |
 | Scaling | `MinMaxScaler` fitted on the training split only |
 | Framework | TensorFlow 2.17.1 (CPU wheels), Keras 3 |
+| Serving | Forecasts precomputed once, replayed by FastAPI (no TensorFlow at runtime) |
 
 Training is reproducible with [`training/train.py`](training/train.py); the Colab notebook is
 linked once uploaded.
@@ -140,12 +143,10 @@ OpenAPI documentation: `http://localhost:8000/docs`.
 ```
 .
 ├── backend/
-│   ├── main.py                  # FastAPI application
-│   ├── nasa_lstm_model.keras    # trained LSTM
-│   ├── sensor_D-1_data.json     # scaled test series + NASA anomaly labels
+│   ├── main.py                  # FastAPI application (no TensorFlow at runtime)
+│   ├── telemetry_D-1.json       # precomputed forecasts + NASA anomaly labels
 │   ├── requirements.txt
-│   ├── Dockerfile               # Hugging Face Spaces image
-│   └── scripts/verify_model.py
+│   └── Dockerfile               # optional self-hosting image
 ├── frontend/
 │   ├── src/App.jsx              # dashboard component
 │   ├── src/index.css            # Tailwind entry point
@@ -153,14 +154,16 @@ OpenAPI documentation: `http://localhost:8000/docs`.
 │   └── vite.config.js
 ├── training/
 │   ├── train.py                 # reproducible training script
+│   ├── export_predictions.py    # writes backend/telemetry_D-1.json
 │   ├── screen_channels.py       # channel benchmark
-│   ├── scaler_D-1.pkl           # fitted MinMaxScaler (reproducibility only)
+│   ├── artifacts/               # model, scaler and scaled test series
 │   └── training_history.json
 ├── docs/
 │   ├── dashboard.png            # rendered dashboard
 │   ├── DESIGN.md                # design decisions and anti-pattern notes
-│   └── DEPLOYMENT.md            # Hugging Face and Vercel guide
+│   └── DEPLOYMENT.md            # Vercel services guide
 ├── SECURITY.md
+├── vercel.json                  # Vercel services + routing + headers
 └── README.md
 ```
 
@@ -177,11 +180,14 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-Verify the artefact without starting the server:
+Regenerate the precomputed forecasts (requires TensorFlow, training only):
 
 ```bash
-python scripts/verify_model.py
-# [PASS] nasa_lstm_model.keras anomaly_ratio=19.24 (minimum 5.0)
+pip install tensorflow==2.17.1 pandas pyarrow
+python training/export_predictions.py
+# wrote backend/telemetry_D-1.json (704 KB, 8459 points)
+# anomaly_ratio=18.625 ref_mean=0.042356 ref_std=0.058108
+# best point F1=0.9405 at sensitivity=6.00
 ```
 
 ### Frontend
@@ -196,8 +202,10 @@ npm run dev
 
 The API is hardened for public hosting: CORS allow-list, trusted-host validation, per-IP rate
 limiting, security headers, HSTS, disabled OpenAPI docs in production, generic error responses and
-bounded input validation. No secrets are committed, `.env` files are ignored, and dependencies are
-audited (`npm audit` clean; one non-exploitable `protobuf` advisory documented).
+bounded input validation, gzip and shared caching. No secrets are committed, `.env` files are
+ignored, and dependencies are audited (`npm audit` and `pip-audit` clean after removing
+TensorFlow from the runtime). Rate limiting is per serverless instance, which is documented
+honestly in the threat model.
 
 The application has no accounts, database, cookies, uploads or write endpoints, so authentication,
 RLS, CSRF, SQL-injection and password-hashing controls are intentionally out of scope. The full
@@ -206,10 +214,17 @@ threat model, verification evidence and production environment variables are doc
 
 ## Deployment
 
+Everything runs on **Vercel Hobby, at zero cost, without a payment method**:
+
 | Component | Platform | Notes |
 | --------- | -------- | ----- |
-| Backend | Hugging Face Spaces (Docker) | free tier, 16 GB RAM, port `7860` |
-| Frontend | Vercel | `VITE_API_URL` points to the Space URL |
+| Backend | Vercel service `backend` | FastAPI + precomputed telemetry, gzip and shared caching |
+| Frontend | Vercel service `frontend` | static Vite build |
+| Routing | root `vercel.json` | `/api/*` → backend, everything else → frontend |
+
+No environment variables are required in production because the frontend calls the API on the same
+origin. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the import steps, free-tier limits and the
+two-project fallback.
 
 ## Credits
 
