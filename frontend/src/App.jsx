@@ -226,9 +226,9 @@ function AboutDialog({ dialogRef }) {
     <dialog
       ref={dialogRef}
       aria-labelledby="about-title"
-      className="about-dialog max-h-[86vh] w-[min(760px,92vw)] rounded-md border border-white/10 bg-slate-950/85 p-0 text-slate-200 shadow-2xl shadow-black/70 backdrop-blur-xl open:flex open:flex-col"
+      className="about-dialog max-h-[88vh] w-[min(760px,92vw)] rounded-md border border-white/10 bg-slate-950/70 p-0 text-slate-200 shadow-2xl shadow-black/70 ring-1 ring-white/10 backdrop-blur-2xl open:flex open:flex-col"
     >
-      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 px-6 py-4">
+      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 bg-white/[0.03] px-6 py-4">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-300">mission brief</p>
           <h2 id="about-title" className="mt-1 text-xl font-semibold text-slate-100">
@@ -243,7 +243,7 @@ function AboutDialog({ dialogRef }) {
           close
         </button>
       </div>
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5 text-sm leading-relaxed text-slate-300">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-white/[0.02] px-6 py-5 text-sm leading-relaxed text-slate-300 backdrop-blur-sm">
         <p>
           This is a mission-control view of one real telemetry channel from NASA's SMAP satellite. An
           LSTM network was trained only on normal operation and forecasts the next sample from the
@@ -260,22 +260,22 @@ function AboutDialog({ dialogRef }) {
         </div>
         <div>
           <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">Metrics</h3>
-          <dl className="mt-2 space-y-2">
-            <div>
+          <dl className="mt-2 space-y-1.5">
+            <div className="grid gap-0.5 sm:grid-cols-[160px_1fr] sm:gap-x-4">
               <dt className="text-slate-400">Episodes detected</dt>
-              <dd className="mt-0.5">Labelled anomaly windows caught by the alarm, out of the total.</dd>
+              <dd>Labelled anomaly windows caught by the alarm, out of the total.</dd>
             </div>
-            <div>
+            <div className="grid gap-0.5 sm:grid-cols-[160px_1fr] sm:gap-x-4">
               <dt className="text-slate-400">Precision / recall</dt>
-              <dd className="mt-0.5">Point-level scores over all 8,459 test samples.</dd>
+              <dd>Point-level scores over all 8,459 test samples.</dd>
             </div>
-            <div>
+            <div className="grid gap-0.5 sm:grid-cols-[160px_1fr] sm:gap-x-4">
               <dt className="text-slate-400">Point vs episode F1</dt>
-              <dd className="mt-0.5">Episode F1 counts an alarm as correct when it overlaps a labelled window within +/-25 samples.</dd>
+              <dd>Episode F1 counts an alarm as correct when it overlaps a labelled window within +/-25 samples.</dd>
             </div>
-            <div>
+            <div className="grid gap-0.5 sm:grid-cols-[160px_1fr] sm:gap-x-4">
               <dt className="text-slate-400">Error ratio</dt>
-              <dd className="mt-0.5">Mean error inside anomalies divided by mean error during normal operation (18.6x).</dd>
+              <dd>Mean error inside anomalies divided by mean error during normal operation (18.6x).</dd>
             </div>
           </dl>
         </div>
@@ -316,7 +316,6 @@ export default function App() {
   })
   const [wide, setWide] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? true)
   const [backdropReady, setBackdropReady] = useState(false)
-  const [backdropFailed, setBackdropFailed] = useState(false)
   const [backdropLoaded, setBackdropLoaded] = useState(false)
   const [tabVisible, setTabVisible] = useState(() => !document.hidden)
   const aboutRef = useRef(null)
@@ -386,12 +385,6 @@ export default function App() {
     }
   }, [status, wide])
 
-  useEffect(() => {
-    if (!backdropReady || backdropLoaded || backdropFailed) return undefined
-    const timer = window.setTimeout(() => setBackdropFailed(true), 9000)
-    return () => window.clearTimeout(timer)
-  }, [backdropReady, backdropLoaded, backdropFailed])
-
   const retry = () => {
     setStatus('loading')
     setError('')
@@ -445,7 +438,7 @@ export default function App() {
   }
 
   const { stats, spacecraft } = telemetry
-  const showIframe = wide && backdropReady && tabVisible && !backdropFailed
+  const showIframe = wide && backdropReady && tabVisible
 
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ backgroundColor: INK }}>
@@ -456,7 +449,7 @@ export default function App() {
         onLoad={() => setBackdropLoaded(true)}
       />
       <AboutDialog dialogRef={aboutRef} />
-      <div className="relative z-10 w-full px-3 py-6 sm:px-5 lg:px-6">
+      <div id="top" className="relative z-10 w-full px-3 py-6 sm:px-5 lg:px-6">
         <div className="w-full">
         <div className="w-full rounded-md border border-white/10 bg-slate-950/40 shadow-2xl shadow-black/60 ring-1 ring-white/5 backdrop-blur-lg">
           <header className="flex flex-col gap-6 bg-gradient-to-b from-white/[0.06] to-slate-950/25 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
@@ -860,6 +853,51 @@ export default function App() {
         </div>
         </div>
       </div>
+      <section
+        id="observatory"
+        aria-label="Solar system backdrop"
+        className="relative z-10 flex min-h-[100svh] flex-col items-center justify-end px-6 pb-14"
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[#070b12] to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-[#070b12] via-[#070b12]/85 to-transparent" />
+        <div className="relative z-10 max-w-2xl text-center">
+          <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-cyan-300">observatory</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100 sm:text-3xl">
+            Solar System
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-300">
+            {telemetry.data.length.toLocaleString()} SMAP {telemetry.sensor_id} samples, an LSTM forecast
+            and the anomaly window labelled by NASA JPL.
+          </p>
+          <p className="mt-2 text-[11px] text-slate-400">
+            Backdrop: Solar System by pinotoon on Sketchfab (Editorial licence, embedded with do-not-track).
+          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-5 font-mono text-[11px] uppercase tracking-wider">
+            <button
+              type="button"
+              onClick={() => setMotion((value) => !value)}
+              aria-pressed={motion}
+              className="text-cyan-300 underline decoration-cyan-800 underline-offset-4 hover:text-cyan-200"
+            >
+              motion {motion ? 'on' : 'off'}
+            </button>
+            <a
+              href="#top"
+              className="text-slate-300 underline decoration-slate-700 underline-offset-4 hover:text-slate-100"
+            >
+              back to dashboard
+            </a>
+            <a
+              href="https://github.com/ArditCeno/Spacecraft-Anomaly-Detection-AI"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-slate-300 underline decoration-slate-700 underline-offset-4 hover:text-slate-100"
+            >
+              source
+            </a>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
