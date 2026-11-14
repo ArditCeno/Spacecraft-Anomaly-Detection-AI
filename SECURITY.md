@@ -35,6 +35,25 @@ supply-chain vulnerabilities. User-account and database threats do not exist in 
 | Transport | HTTPS terminated by Hugging Face Spaces and Vercel; HSTS sent; HTTP→HTTPS enforced by the platforms | platform behaviour |
 | Supply chain | `npm audit` reports 0 vulnerabilities; `pip-audit` reviewed (see below) | audit output |
 
+## Third-party embed
+
+The dashboard optionally renders a Sketchfab solar-system scene as a page backdrop:
+
+- The iframe is loaded only on viewports of at least 768 px, after the first idle period, and never
+  when the browser reports `Save-Data`. It is unmounted while the tab is hidden.
+- The embed uses `dnt=1` (do not track), but Sketchfab may still set cookies and receive the
+  visitor's IP address and user agent under its own privacy policy. The parent page shares no
+  application data with the iframe.
+- CSP is narrowed with a single exception: `frame-src https://sketchfab.com`. No script, style or
+  connection exception is granted to Sketchfab because the iframe is a separate origin.
+- The model is licensed **Editorial** and attributed in the footer. It must be replaced before any
+  commercial use.
+- A deterministic CSS/SVG starfield is rendered underneath, so the page still looks correct when
+  the embed is blocked, offline, or disabled.
+
+To remove the integration entirely, delete the `SpaceBackdrop` component and the `frame-src`
+directive; no other code depends on it.
+
 ## Not applicable to this architecture
 
 These items are common in web apps with accounts and databases, but adding them here would be
