@@ -226,9 +226,9 @@ function AboutDialog({ dialogRef }) {
     <dialog
       ref={dialogRef}
       aria-labelledby="about-title"
-      className="about-dialog w-[min(760px,92vw)] rounded-md border border-white/10 bg-slate-950/85 p-0 text-slate-200 shadow-2xl shadow-black/70 backdrop-blur-xl"
+      className="about-dialog flex max-h-[86vh] w-[min(760px,92vw)] flex-col rounded-md border border-white/10 bg-slate-950/85 p-0 text-slate-200 shadow-2xl shadow-black/70 backdrop-blur-xl"
     >
-      <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-4">
+      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 px-6 py-4">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-300">mission brief</p>
           <h2 id="about-title" className="mt-1 text-xl font-semibold text-slate-100">
@@ -243,7 +243,7 @@ function AboutDialog({ dialogRef }) {
           close
         </button>
       </div>
-      <div className="max-h-[70vh] space-y-5 overflow-y-auto px-6 py-5 text-sm leading-relaxed text-slate-300">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5 text-sm leading-relaxed text-slate-300">
         <p>
           This is a mission-control view of one real telemetry channel from NASA's SMAP satellite. An
           LSTM network was trained only on normal operation and forecasts the next sample from the
@@ -261,21 +261,21 @@ function AboutDialog({ dialogRef }) {
         <div>
           <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">Metrics</h3>
           <dl className="mt-2 space-y-2">
-            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+            <div>
               <dt className="text-slate-400">Episodes detected</dt>
-              <dd>Labelled anomaly windows caught by the alarm, out of the total.</dd>
+              <dd className="mt-0.5">Labelled anomaly windows caught by the alarm, out of the total.</dd>
             </div>
-            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+            <div>
               <dt className="text-slate-400">Precision / recall</dt>
-              <dd>Point-level scores over all 8,459 test samples.</dd>
+              <dd className="mt-0.5">Point-level scores over all 8,459 test samples.</dd>
             </div>
-            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+            <div>
               <dt className="text-slate-400">Point vs episode F1</dt>
-              <dd>Episode F1 counts an alarm as correct when it overlaps a labelled window within +/-25 samples.</dd>
+              <dd className="mt-0.5">Episode F1 counts an alarm as correct when it overlaps a labelled window within +/-25 samples.</dd>
             </div>
-            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+            <div>
               <dt className="text-slate-400">Error ratio</dt>
-              <dd>Mean error inside anomalies divided by mean error during normal operation (18.6x).</dd>
+              <dd className="mt-0.5">Mean error inside anomalies divided by mean error during normal operation (18.6x).</dd>
             </div>
           </dl>
         </div>
