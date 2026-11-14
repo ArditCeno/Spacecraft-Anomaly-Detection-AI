@@ -24,7 +24,7 @@ supply-chain vulnerabilities. User-account and database threats do not exist in 
 | Host header validation | `TrustedHostMiddleware` with configurable `ALLOWED_HOSTS` | `Host: evil.example` → `400` |
 | Rate limiting | In-memory sliding window per client IP (`RATE_LIMIT_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS`), proxy aware, returns `429` + `Retry-After`. On serverless, counters are per instance | 7 requests with limit 5 → `200 200 200 200 200 429 429` |
 | Security headers | `SecurityHeadersMiddleware`: `nosniff`, `X-Frame-Options: DENY`, `no-referrer`, Permissions-Policy, COOP, CORP, HSTS | confirmed with `curl -D -` |
-| Production CSP | `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` on API responses | confirmed in production mode |
+| Production CSP | API responses use `default-src 'none'`; the frontend ships a full CSP from `frontend/vercel.json` (`script-src 'self'`, `connect-src` limited to the API and localhost, `frame-src` limited to Sketchfab) | confirmed with `curl -D -` |
 | Docs exposure | `/docs` and `/openapi.json` disabled when `ENVIRONMENT=production` | `404` |
 | Error handling | Global exception handler logs server-side and returns a generic message; no stack traces or paths | code review |
 | Input validation | `sensor_id` is whitelisted (`D-1` only); numeric query parameters use bounded `Query(ge=..., le=...)`; no object identifiers that could allow IDOR | code review |
@@ -32,7 +32,7 @@ supply-chain vulnerabilities. User-account and database threats do not exist in 
 | Frontend XSS | React escapes rendered values; no `dangerouslySetInnerHTML`; no user-generated content; CSP and headers in `frontend/vercel.json` | `frontend/vercel.json` |
 | Secrets | No credentials in the repository or in git history (scanned); `.env*` ignored except `.env.example`; no secret is exposed to Vite | `git grep` over all revisions |
 | Debug mode | `uvicorn` runs without `--reload` in the container; `--no-server-header` removes banner disclosure | `backend/Dockerfile` |
-| Transport | HTTPS terminated by Vercel; HSTS sent; HTTP→HTTPS enforced by the platform | platform behaviour |
+| Transport | HTTPS terminated by Vercel; HSTS sent by both projects; HTTP→HTTPS enforced by the platform | platform behaviour |
 | Supply chain | `npm audit` reports 0 vulnerabilities; `pip-audit` reviewed (see below) | audit output |
 
 ## Third-party embed
@@ -92,7 +92,7 @@ runs `pip-audit` and `npm audit` on every push.
 ## Secret handling rules
 
 1. Never place a secret in a `VITE_*` variable: everything prefixed with `VITE_` is embedded in the
-   public JavaScript bundle.
+   public JavaScript bundle. `frontend/.env.production` therefore contains only the public API URL.
 2. Keep real `.env` files local; only `.env.example` files are committed.
 3. Hosting tokens (GitHub, Vercel) are used only in the provider dashboards or as `git push`
    passwords and are never written to disk by this project.

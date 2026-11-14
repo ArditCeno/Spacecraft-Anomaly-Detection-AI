@@ -5,6 +5,9 @@ normal SMAP satellite behaviour, forecasts the next telemetry sample from a slid
 flags deviations whose prediction error exceeds a tunable threshold. Predictions are served by a
 FastAPI backend and explored through an interactive React mission-control dashboard.
 
+**Live demo:** https://spacecraft-anomaly-detection-ai.vercel.app  
+**API health:** https://nasa-anomaly-api.vercel.app/api/health
+
 ![Mission control dashboard](docs/dashboard.png)
 
 ## Highlights
@@ -19,7 +22,7 @@ FastAPI backend and explored through an interactive React mission-control dashbo
 - **Zero-cost deployment**: the trained LSTM runs once during export, and FastAPI serves the
   forecasts on Vercel with gzip, shared caching and a same-origin `/api` route.
 - **Optional 3D backdrop**: a Sketchfab solar-system scene, lazily embedded, dimmed behind the
-  console, with a motion toggle and a CSS starfield fallback.
+  frosted console, with a motion toggle and a CSS starfield fallback.
 
 ## Results
 
@@ -45,9 +48,13 @@ The React dashboard turns the raw forecast into a decision surface:
 - **Error chart**: the residual `|actual − predicted|` with the active threshold overlaid.
 - **Diagnostics**: F1 across every sensitivity, plus reference statistics and detection
   configuration, so the trade-off between false alarms and missed anomalies is explicit.
-- **Backdrop**: an optional Sketchfab solar-system scene sits in the right margin on wide screens,
-  with a motion toggle, reduced-motion support, lazy loading and a starfield fallback. The visual
+- **Guided explainer**: the header opens a "What am I looking at?" dialog that explains the signal,
+  the NASA anomaly band, the threshold formula and every metric in plain language.
+- **Backdrop**: an optional Sketchfab solar-system scene sits behind the frosted console, with a
+  motion toggle, reduced-motion support, lazy loading and a starfield fallback. The visual
   decisions are documented in [docs/DESIGN.md](docs/DESIGN.md).
+
+![Project explainer](docs/explainer.png)
 
 ## Architecture
 
@@ -150,6 +157,8 @@ OpenAPI documentation: `http://localhost:8000/docs`.
 ├── frontend/
 │   ├── src/App.jsx              # dashboard component
 │   ├── src/index.css            # Tailwind entry point
+│   ├── .env.production          # production API URL (public, not a secret)
+│   ├── vercel.json              # CSP and security headers for the frontend project
 │   ├── tailwind.config.js
 │   └── vite.config.js
 ├── training/
@@ -160,10 +169,11 @@ OpenAPI documentation: `http://localhost:8000/docs`.
 │   └── training_history.json
 ├── docs/
 │   ├── dashboard.png            # rendered dashboard
+│   ├── explainer.png            # "What am I looking at?" dialog
 │   ├── DESIGN.md                # design decisions and anti-pattern notes
-│   └── DEPLOYMENT.md            # Vercel services guide
+│   └── DEPLOYMENT.md            # Vercel two-project guide
 ├── SECURITY.md
-├── vercel.json                  # Vercel services + routing + headers
+├── vercel.json                  # optional services configuration (fallback)
 └── README.md
 ```
 
@@ -214,17 +224,17 @@ threat model, verification evidence and production environment variables are doc
 
 ## Deployment
 
-Everything runs on **Vercel Hobby, at zero cost, without a payment method**:
+Everything runs on **Vercel Hobby, at zero cost, without a payment method**, as two projects:
 
-| Component | Platform | Notes |
-| --------- | -------- | ----- |
-| Backend | Vercel service `backend` | FastAPI + precomputed telemetry, gzip and shared caching |
-| Frontend | Vercel service `frontend` | static Vite build |
-| Routing | root `vercel.json` | `/api/*` → backend, everything else → frontend |
+| Component | URL | Notes |
+| --------- | --- | ----- |
+| Frontend | https://spacecraft-anomaly-detection-ai.vercel.app | static Vite build, CSP and HSTS from `frontend/vercel.json` |
+| Backend | https://nasa-anomaly-api.vercel.app | FastAPI + precomputed telemetry, gzip and shared caching |
 
-No environment variables are required in production because the frontend calls the API on the same
-origin. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the import steps, free-tier limits and the
-two-project fallback.
+The frontend reads `VITE_API_URL` from `frontend/.env.production` (a public URL, not a secret), so
+the build is reproducible without dashboard settings. See
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the import steps, free-tier limits and the optional
+single-project services configuration.
 
 ## Credits
 

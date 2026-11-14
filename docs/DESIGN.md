@@ -14,7 +14,7 @@ decorative element, and it is dimmed, lazy-loaded and switchable.
 | 3 | Emojis in headings | None anywhere in the interface. |
 | 4 | Inter everywhere | System sans stack for prose, system monospace for every number and label. |
 | 5 | Coloured border cards | One neutral border colour (`#1b2532`) for every panel. |
-| 6 | Glassmorphism | Opaque panels. No `backdrop-blur`, no translucent cards. |
+| 6 | Glassmorphism | A single frosted console layer with a neutral blur, added on request. Charts sit on darker sub-layers so contrast stays readable. No stacked translucent cards or neon edges. |
 | 7 | Low-contrast dark mode | Body text `slate-200/300`, secondary text raised from `slate-500` to `slate-400` for AA contrast. |
 | 8 | Three icon boxes in a row | A five-cell metrics strip with uppercase labels and monospaced values, no icons. |
 | 9 | Badge above the headline | Only a provenance line (`nasa smap / telemanom`) that states the mission and dataset. |
@@ -36,13 +36,27 @@ decorative element, and it is dimmed, lazy-loaded and switchable.
   attributed in the footer.
 - It is embedded only on viewports of at least 768 px, after the telemetry request finishes and
   the browser is idle. It is unmounted while the tab is hidden and skipped under `Save-Data`.
-- The embed is dimmed and pushed to the margins with a scale and translation, so it reads as a
-  window into space next to the console instead of a wallpaper behind text.
+- The embed is dimmed and scaled so it reads as a window into space behind the frosted console,
+  not as a wallpaper competing with text.
 - A neutral vertical scrim protects contrast; charts live on opaque panels.
 - A deterministic SVG starfield (140 stars) renders underneath, so the page is complete when the
   iframe is blocked or motion is disabled.
 - The `motion` control in the header pauses rotation (`autospin=0`) and is persisted in
   `localStorage`. `prefers-reduced-motion` forces it off.
+
+## Frosted console
+
+The dashboard fills the viewport and the five metrics are centred. A single `backdrop-blur-md`
+layer covers the solar-system scene; chart panels and metric cells use a darker translucent
+sub-layer so data never sits directly on a bright planet. This keeps the glass look without the
+common failure mode of low-contrast charts over a busy backdrop.
+
+## Guided explainer
+
+A `What am I looking at?` button in the header opens a native `<dialog>` (focus trapping and
+Escape handling come from the platform). It defines the two lines, the anomaly band, the threshold
+formula, point versus episode metrics, the dataset and links to the source. The dialog shares the
+frosted styling and scrolls inside the viewport.
 
 ## Typography and colour
 
