@@ -117,7 +117,7 @@ function ChartTooltip({ active, payload, label }) {
 
 function Metric({ label, value, sub }) {
   return (
-    <div className="px-5 py-4" style={{ backgroundColor: PANEL }}>
+    <div className="px-5 py-5 text-center" style={{ backgroundColor: PANEL }}>
       <div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{label}</div>
       <div className="mt-1.5 font-mono text-2xl text-slate-100">{value}</div>
       <div className="mt-1 text-[11px] text-slate-400">{sub}</div>
@@ -374,9 +374,9 @@ export default function App() {
         loaded={backdropLoaded}
         onLoad={() => setBackdropLoaded(true)}
       />
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_300px] xl:gap-6">
-        <div className="border" style={{ borderColor: RULE }}>
+      <div className="relative z-10 w-full px-3 py-6 sm:px-5 lg:px-6">
+        <div className="w-full">
+        <div className="w-full border" style={{ borderColor: RULE }}>
           <header className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between" style={{ background: 'linear-gradient(180deg, rgba(7,11,18,0.20) 0%, rgba(7,11,18,0.62) 100%)' }}>
             <div>
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
@@ -710,7 +710,7 @@ export default function App() {
                   <dd className="text-slate-300">{telemetry.inference || 'precomputed'}</dd>
                 </div>                <div className="flex justify-between gap-3">
                   <dt className="text-slate-400">artefact</dt>
-                  <dd className="truncate text-slate-300">{telemetry.model_file}</dd>
+                  <dd className="break-all text-right text-slate-300">{telemetry.model_file}</dd>
                 </div>
               </dl>
             </section>
