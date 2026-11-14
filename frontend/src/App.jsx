@@ -24,6 +24,9 @@ const EPISODE_GAP = 50
 const INK = '#070b12'
 const PANEL = '#0b111a'
 const RULE = '#1b2532'
+const MOTION_KEY = 'spacecraft-dashboard.motion'
+const SKETCHFAB_MODEL = '178d1deb210a4bc4a63ee05bc6cb6dcf'
+const SKETCHFAB_PAGE = `https://sketchfab.com/3d-models/solar-system-${SKETCHFAB_MODEL}`
 
 const asPercent = (value) => `${(value * 100).toFixed(1)}%`
 
@@ -115,9 +118,9 @@ function ChartTooltip({ active, payload, label }) {
 function Metric({ label, value, sub }) {
   return (
     <div className="px-5 py-4" style={{ backgroundColor: PANEL }}>
-      <div className="text-[11px] uppercase tracking-[0.12em] text-slate-500">{label}</div>
+      <div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{label}</div>
       <div className="mt-1.5 font-mono text-2xl text-slate-100">{value}</div>
-      <div className="mt-1 text-[11px] text-slate-500">{sub}</div>
+      <div className="mt-1 text-[11px] text-slate-400">{sub}</div>
     </div>
   )
 }
@@ -134,6 +137,90 @@ function LegendItem({ color, label, dashed = false }) {
   )
 }
 
+const STARS = (() => {
+  let state = 97
+  const next = () => {
+    state = (state * 16807) % 2147483647
+    return (state - 1) / 2147483646
+  }
+  return Array.from({ length: 140 }, () => ({
+    x: next() * 1600,
+    y: next() * 900,
+    radius: 0.4 + next() * 1.2,
+    opacity: 0.12 + next() * 0.5,
+  }))
+})()
+
+function Starfield() {
+  return (
+    <svg
+      className="absolute inset-0 h-full w-full"
+      viewBox="0 0 1600 900"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+    >
+      {STARS.map((star, index) => (
+        <circle
+          key={index}
+          cx={star.x}
+          cy={star.y}
+          r={star.radius}
+          fill="#cbd5e1"
+          opacity={star.opacity}
+        />
+      ))}
+    </svg>
+  )
+}
+
+function SpaceBackdrop({ showIframe, motion, loaded, onLoad }) {
+  const src = `https://sketchfab.com/models/${SKETCHFAB_MODEL}/embed?autospin=${motion ? '0.15' : '0'}&autostart=1&preload=1&ui_controls=0&ui_infos=0&ui_stop=0&ui_watermark=0&ui_theme=dark&ui_fullscreen=0&ui_help=0&ui_settings=0&ui_vr=0&ui_annotations=0&ui_general_controls=0&ui_hint=0&ui_loading=0&dnt=1`
+
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#070b12]">
+      <Starfield />
+      {showIframe ? (
+        <iframe
+          key={motion ? 'animated' : 'static'}
+          title="Solar System backdrop by pinotoon on Sketchfab"
+          src={src}
+          allow="autoplay; fullscreen"
+          loading="lazy"
+          onLoad={onLoad}
+          className="absolute inset-0 h-full w-full border-0"
+          style={{
+            opacity: loaded ? 0.62 : 0,
+            transform: 'scale(1.2) translateX(12%)',
+            transformOrigin: 'center',
+            filter: 'brightness(0.9) saturate(0.95)',
+            transition: 'opacity 1.4s ease',
+          }}
+        />
+      ) : null}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(7,11,18,0.18) 0%, rgba(7,11,18,0.45) 45%, rgba(7,11,18,0.82) 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 35%, rgba(7,11,18,0.02) 0%, rgba(7,11,18,0.28) 65%, rgba(7,11,18,0.75) 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 h-[38%]"
+        style={{
+          background: 'linear-gradient(180deg, rgba(7,11,18,0) 0%, rgba(7,11,18,0.92) 100%)',
+        }}
+      />
+    </div>
+  )
+}
+
 export default function App() {
   const [telemetry, setTelemetry] = useState(null)
   const [curve, setCurve] = useState(null)
@@ -141,6 +228,17 @@ export default function App() {
   const [error, setError] = useState('')
   const [sensitivity, setSensitivity] = useState(3)
   const [reloadToken, setReloadToken] = useState(0)
+  const [motion, setMotion] = useState(() => {
+    const saved = window.localStorage.getItem(MOTION_KEY)
+    if (saved === 'on') return true
+    if (saved === 'off') return false
+    return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  })
+  const [wide, setWide] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? true)
+  const [backdropReady, setBackdropReady] = useState(false)
+  const [backdropFailed, setBackdropFailed] = useState(false)
+  const [backdropLoaded, setBackdropLoaded] = useState(false)
+  const [tabVisible, setTabVisible] = useState(() => !document.hidden)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -170,6 +268,49 @@ export default function App() {
     return () => controller.abort()
   }, [reloadToken])
 
+  useEffect(() => {
+    window.localStorage.setItem(MOTION_KEY, motion ? 'on' : 'off')
+  }, [motion])
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const onChange = () => {
+      if (media.matches) setMotion(false)
+    }
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 768px)')
+    const onChange = () => setWide(media.matches)
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    const onVisibilityChange = () => setTabVisible(!document.hidden)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [])
+
+  useEffect(() => {
+    if (status !== 'ready' || !wide || navigator.connection?.saveData) return undefined
+    const handle = window.requestIdleCallback
+      ? window.requestIdleCallback(() => setBackdropReady(true), { timeout: 2500 })
+      : window.setTimeout(() => setBackdropReady(true), 1200)
+    return () => {
+      if (window.cancelIdleCallback) window.cancelIdleCallback(handle)
+      else window.clearTimeout(handle)
+    }
+  }, [status, wide])
+
+  useEffect(() => {
+    if (!backdropReady || backdropLoaded || backdropFailed) return undefined
+    const timer = window.setTimeout(() => setBackdropFailed(true), 9000)
+    return () => window.clearTimeout(timer)
+  }, [backdropReady, backdropLoaded, backdropFailed])
+
   const retry = () => {
     setStatus('loading')
     setError('')
@@ -193,7 +334,7 @@ export default function App() {
   if (status === 'loading') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3" style={{ backgroundColor: INK }}>
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-slate-500">acquiring telemetry</p>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-slate-400">acquiring telemetry</p>
         <p className="max-w-sm px-6 text-center text-xs text-slate-600">
           The free-tier backend can take up to 30 seconds to wake after inactivity.
         </p>
@@ -208,7 +349,7 @@ export default function App() {
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-rose-400">link down</p>
           <h1 className="mt-2 text-lg text-slate-100">Backend unavailable</h1>
           <p className="mt-2 text-sm text-slate-400">{error}</p>
-          <p className="mt-2 font-mono text-xs text-slate-500">{API_URL}</p>
+          <p className="mt-2 font-mono text-xs text-slate-400">{API_URL}</p>
           <button
             type="button"
             onClick={retry}
@@ -223,14 +364,22 @@ export default function App() {
   }
 
   const { stats, spacecraft } = telemetry
+  const showIframe = wide && backdropReady && tabVisible && !backdropFailed
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: INK }}>
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="border" style={{ borderColor: RULE, backgroundColor: PANEL }}>
-          <header className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
+    <div className="relative min-h-screen overflow-hidden" style={{ backgroundColor: INK }}>
+      <SpaceBackdrop
+        showIframe={showIframe}
+        motion={motion}
+        loaded={backdropLoaded}
+        onLoad={() => setBackdropLoaded(true)}
+      />
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_300px] xl:gap-6">
+        <div className="border" style={{ borderColor: RULE }}>
+          <header className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between" style={{ background: 'linear-gradient(180deg, rgba(7,11,18,0.20) 0%, rgba(7,11,18,0.62) 100%)' }}>
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-500">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
                 nasa {spacecraft.toLowerCase()} / telemanom
               </p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100 sm:text-3xl">
@@ -242,16 +391,27 @@ export default function App() {
               </p>
             </div>
             <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-1.5 font-mono text-[11px]">
-              <dt className="text-slate-500">status</dt>
+              <dt className="text-slate-400">status</dt>
               <dd className="text-cyan-300">online</dd>
-              <dt className="text-slate-500">sensor</dt>
+              <dt className="text-slate-400">sensor</dt>
               <dd className="text-slate-200">{telemetry.sensor_id}</dd>
-              <dt className="text-slate-500">window</dt>
+              <dt className="text-slate-400">window</dt>
               <dd className="text-slate-200">{telemetry.window_size} samples</dd>
-              <dt className="text-slate-500">model</dt>
+              <dt className="text-slate-400">model</dt>
               <dd className="text-slate-200">lstm 64 / 32</dd>
-              <dt className="text-slate-500">points</dt>
+              <dt className="text-slate-400">points</dt>
               <dd className="text-slate-200">{telemetry.data.length.toLocaleString()}</dd>
+              <dt className="text-slate-400">motion</dt>
+              <dd>
+                <button
+                  type="button"
+                  onClick={() => setMotion((value) => !value)}
+                  aria-pressed={motion}
+                  className="text-cyan-300 underline decoration-cyan-800 underline-offset-4 hover:text-cyan-200"
+                >
+                  {motion ? 'on' : 'off'}
+                </button>
+              </dd>
             </dl>
           </header>
 
@@ -283,7 +443,7 @@ export default function App() {
             />
           </div>
 
-          <section className="border-t px-6 py-5" style={{ borderColor: RULE }}>
+          <section className="border-t px-6 py-5" style={{ borderColor: RULE, backgroundColor: PANEL }}>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
@@ -310,7 +470,7 @@ export default function App() {
                     {sensitivity.toFixed(1)}
                   </span>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-slate-500">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-slate-400">
                   <span>
                     threshold {threshold.toFixed(4)} / flagged {metrics.flaggedPoints}
                   </span>
@@ -326,7 +486,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="border-t px-6 py-6" style={{ borderColor: RULE }}>
+          <section className="border-t px-6 py-6" style={{ borderColor: RULE, backgroundColor: PANEL }}>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
@@ -407,7 +567,7 @@ export default function App() {
             </div>
           </section>
 
-          <div className="grid border-t lg:grid-cols-3" style={{ borderColor: RULE }}>
+          <div className="grid border-t lg:grid-cols-3" style={{ borderColor: RULE, backgroundColor: PANEL }}>
             <section className="border-b px-6 py-6 lg:col-span-2 lg:border-b-0 lg:border-r" style={{ borderColor: RULE }}>
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
                 Prediction error and threshold
@@ -528,32 +688,32 @@ export default function App() {
               </div>
               <dl className="mt-5 space-y-2 border-t pt-4 font-mono text-[11px]" style={{ borderColor: RULE }}>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-slate-500">ref mean / std</dt>
+                  <dt className="text-slate-400">ref mean / std</dt>
                   <dd className="text-slate-300">
                     {stats.ref_mean.toFixed(4)} / {stats.ref_std.toFixed(4)}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-slate-500">persistence</dt>
+                  <dt className="text-slate-400">persistence</dt>
                   <dd className="text-slate-300">{MIN_DURATION} samples</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-slate-500">match tolerance</dt>
+                  <dt className="text-slate-400">match tolerance</dt>
                   <dd className="text-slate-300">+/- {TOLERANCE} samples</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-slate-500">merge gap</dt>
+                  <dt className="text-slate-400">merge gap</dt>
                   <dd className="text-slate-300">{EPISODE_GAP} samples</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-slate-500">artefact</dt>
+                  <dt className="text-slate-400">artefact</dt>
                   <dd className="truncate text-slate-300">{telemetry.model_file}</dd>
                 </div>
               </dl>
             </section>
           </div>
 
-          <footer className="border-t px-6 py-4 text-[11px] leading-relaxed text-slate-500" style={{ borderColor: RULE }}>
+          <footer className="border-t px-6 py-4 text-[11px] leading-relaxed text-slate-400" style={{ borderColor: RULE, backgroundColor: PANEL }}>
             <p>
               Telemetry from the NASA SMAP channel D-1, distributed with the Telemanom dataset (Hundman et
               al., KDD 2018). Anomaly windows labelled by NASA JPL engineers.
@@ -562,7 +722,20 @@ export default function App() {
               Point metrics score every test sample. Episode metrics count an alarm as correct when it
               overlaps a labelled window within +/-{TOLERANCE} samples.
             </p>
+            <p className="mt-1">
+              Backdrop:{' '}
+              <a
+                href={SKETCHFAB_PAGE}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-cyan-300 underline decoration-cyan-900 underline-offset-4 hover:text-cyan-200"
+              >
+                Solar System by pinotoon on Sketchfab
+              </a>{' '}
+              (Editorial licence, embedded with do-not-track).
+            </p>
           </footer>
+        </div>
         </div>
       </div>
     </div>
