@@ -7,15 +7,23 @@ ground-truth anomaly windows released by NASA JPL (Telemanom dataset).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from contextlib import asynccontextmanager
 from typing import Any
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from tensorflow.keras.models import load_model
+
+import config
+from security import RateLimitMiddleware, SecurityHeadersMiddleware
+
+logger = logging.getLogger("nasa-anomaly-api")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SENSOR_ID = "D-1"
@@ -282,23 +290,41 @@ app = FastAPI(
     ),
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs" if config.DOCS_ENABLED else None,
+    redoc_url=None,
+    openapi_url="/openapi.json" if config.DOCS_ENABLED else None,
 )
 
+# Order matters: the last middleware added is the outermost one.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=config.ALLOWED_ORIGINS,
+    allow_origin_regex=config.ALLOWED_ORIGIN_REGEX or None,
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=["Accept", "Content-Type"],
+    max_age=600,
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.ALLOWED_HOSTS)
+app.add_middleware(
+    RateLimitMiddleware,
+    max_requests=config.RATE_LIMIT_REQUESTS,
+    window_seconds=config.RATE_LIMIT_WINDOW_SECONDS,
+)
+app.add_middleware(SecurityHeadersMiddleware, production=config.IS_PRODUCTION)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse({"detail": "Internal server error."}, status_code=500)
 
 
 @app.get("/", tags=["meta"])
 def root() -> dict:
-    return {
+    payload = {
         "name": "NASA Spacecraft Anomaly Detection API",
         "version": app.version,
         "sensor": SENSOR_ID,
-        "docs": "/docs",
         "endpoints": [
             "/api/health",
             "/api/model-info",
@@ -309,6 +335,9 @@ def root() -> dict:
             "/api/benchmark",
         ],
     }
+    if config.DOCS_ENABLED:
+        payload["docs"] = "/docs"
+    return payload
 
 
 @app.get("/api/health", tags=["meta"])
