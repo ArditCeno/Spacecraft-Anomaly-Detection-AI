@@ -29,6 +29,16 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests -q
+```
+
+Nine contract tests cover health, telemetry sampling, metric values, the threshold curve, parameter
+validation, cache headers and host validation. CI runs them on every push.
+
 ## Security
 
 CORS allow-list, trusted-host validation, per-IP rate limiting, security headers, HSTS, gzip and

@@ -44,6 +44,8 @@ jobs:
           assert payload["stats"]["ref_std"] > 0
           print(f"telemetry ok: {len(points)} points, ratio {payload['stats']['anomaly_ratio']}")
           PY
+      - run: pip install -q -r backend/requirements.txt -r backend/requirements-dev.txt
+      - run: pytest backend/tests -q
 
   dependency-audit:
     name: Dependency audit
