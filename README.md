@@ -9,15 +9,17 @@ FastAPI backend and explored through an interactive React mission-control dashbo
 
 ## Highlights
 
-- **Real NASA telemetry** — Telemanom dataset (SMAP satellite, channel `D-1`) with anomaly
+- **Real NASA telemetry**: Telemanom dataset (SMAP satellite, channel `D-1`) with anomaly
   windows labelled by NASA JPL engineers.
-- **Principled model selection** — eight channels were screened with identical LSTM
+- **Principled model selection**: eight channels were screened with identical LSTM
   configurations before choosing `D-1` (see [benchmark](#channel-benchmark)).
-- **Episode-level detection** — a persistence filter suppresses isolated spikes, so alarms are
+- **Episode-level detection**: a persistence filter suppresses isolated spikes, so alarms are
   only raised for sustained deviations.
-- **Tunable sensitivity** — the dashboard slider recomputes precision, recall and F1 live.
-- **Production-shaped API** — cached inference at startup, typed query parameters, OpenAPI docs,
+- **Tunable sensitivity**: the dashboard slider recomputes precision, recall and F1 live.
+- **Production-shaped API**: cached inference at startup, typed query parameters, OpenAPI docs,
   Docker image ready for Hugging Face Spaces.
+- **Optional 3D backdrop**: a Sketchfab solar-system scene, lazily embedded, dimmed behind the
+  console, with a motion toggle and a CSS starfield fallback.
 
 ## Results
 
@@ -35,14 +37,17 @@ FastAPI backend and explored through an interactive React mission-control dashbo
 
 The React dashboard turns the raw forecast into a decision surface:
 
-- **Alarm sensitivity slider** — moves the threshold between `1σ` and `8σ` and recomputes point
+- **Alarm sensitivity slider**: moves the threshold between `1σ` and `8σ` and recomputes point
   precision / recall / F1 and episode recall instantly. A one-click button jumps to the
   empirically optimal multiplier (`6σ`, F1 `0.941`).
-- **Signal vs forecast** — actual telemetry (cyan) against the LSTM forecast (dashed emerald),
+- **Signal vs forecast**: actual telemetry (cyan) against the LSTM forecast (grey dashed),
   with NASA-labelled windows shaded and detected episodes outlined.
-- **Error chart** — the residual `|actual − predicted|` with the active threshold overlaid.
-- **Diagnostics** — F1 across every sensitivity, plus reference statistics and detection
+- **Error chart**: the residual `|actual − predicted|` with the active threshold overlaid.
+- **Diagnostics**: F1 across every sensitivity, plus reference statistics and detection
   configuration, so the trade-off between false alarms and missed anomalies is explicit.
+- **Backdrop**: an optional Sketchfab solar-system scene sits in the right margin on wide screens,
+  with a motion toggle, reduced-motion support, lazy loading and a starfield fallback. The visual
+  decisions are documented in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Architecture
 
@@ -151,7 +156,11 @@ OpenAPI documentation: `http://localhost:8000/docs`.
 │   ├── screen_channels.py       # channel benchmark
 │   ├── scaler_D-1.pkl           # fitted MinMaxScaler (reproducibility only)
 │   └── training_history.json
-├── docs/dashboard.png           # rendered dashboard
+├── docs/
+│   ├── dashboard.png            # rendered dashboard
+│   ├── DESIGN.md                # design decisions and anti-pattern notes
+│   └── DEPLOYMENT.md            # Hugging Face and Vercel guide
+├── SECURITY.md
 └── README.md
 ```
 
@@ -208,3 +217,5 @@ threat model, verification evidence and production environment variables are doc
   Thresholding* (KDD 2018), released via [telemanom](https://github.com/khundman/telemanom).
 - Telemetry mirror: [`appleparan/telemanom`](https://huggingface.co/datasets/appleparan/telemanom).
 - Data © NASA JPL, distributed under the Telemanom BSD-3-Clause licence.
+- Backdrop: *Solar System* by pinotoon on Sketchfab, licensed Editorial and embedded with
+  do-not-track. Replace it before any commercial use.
