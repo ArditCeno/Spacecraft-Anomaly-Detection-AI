@@ -21,7 +21,10 @@ def _as_list(value: str | None, default: tuple[str, ...] = ()) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
+ENVIRONMENT = (
+    os.getenv("ENVIRONMENT")
+    or ("production" if os.getenv("VERCEL") else "development")
+).strip().lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
 
 ALLOWED_ORIGINS = _as_list(
@@ -31,7 +34,7 @@ ALLOWED_ORIGINS = _as_list(
 ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", r"https://[a-z0-9-]+\.vercel\.app")
 ALLOWED_HOSTS = _as_list(
     os.getenv("ALLOWED_HOSTS"),
-    ("localhost", "127.0.0.1", "testserver", "*.hf.space"),
+    ("localhost", "127.0.0.1", "testserver", "*.vercel.app"),
 )
 
 RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "120"))

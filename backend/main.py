@@ -1,7 +1,11 @@
 """NASA Spacecraft Anomaly Detection API.
 
-Serves LSTM forecasts for the SMAP D-1 telemetry channel together with the
+Serves precomputed LSTM forecasts for the SMAP D-1 telemetry channel together with the
 ground-truth anomaly windows released by NASA JPL (Telemanom dataset).
+
+The trained model is not loaded at runtime: forecasts are generated once by
+``training/export_predictions.py`` and served from ``telemetry_D-1.json``. This keeps the
+service small enough for free serverless hosting and makes responses deterministic.
 """
 
 from __future__ import annotations
@@ -17,18 +21,17 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from tensorflow.keras.models import load_model
 
 import config
-from security import RateLimitMiddleware, SecurityHeadersMiddleware
+from security import CacheControlMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 
 logger = logging.getLogger("nasa-anomaly-api")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SENSOR_ID = "D-1"
-MODEL_CANDIDATES = ("nasa_lstm_model.keras", "nasa_lstm_model.h5")
-DEFAULT_EVERY = 2
+DEFAULT_EVERY = 1
 DEFAULT_SENSITIVITY = 3.0
 DEFAULT_TOLERANCE = 25
 REFERENCE_FRACTION = 0.40
@@ -49,49 +52,29 @@ BENCHMARK = [
 STATE: dict[str, Any] = {}
 
 
-def load_any_model() -> tuple[Any, str]:
-    """Load the newest Keras artefact that this TensorFlow build can open."""
-    failures: list[str] = []
-    for name in MODEL_CANDIDATES:
-        path = os.path.join(BASE_DIR, name)
-        if not os.path.exists(path):
-            continue
-        try:
-            return load_model(path), name
-        except Exception as exc:  # pragma: no cover - depends on TF version
-            failures.append(f"{name}: {exc}")
-    raise RuntimeError("No model could be loaded. " + " | ".join(failures))
+def build_runtime(payload: dict) -> dict:
+    """Convert the precomputed payload into numpy arrays used by every endpoint."""
+    points = payload["points"]
+    steps = np.asarray([point["step"] for point in points], dtype=np.int64)
+    actual = np.asarray([point["actual"] for point in points], dtype=np.float64)
+    predictions = np.asarray([point["predicted"] for point in points], dtype=np.float64)
+    errors = np.asarray([point["error"] for point in points], dtype=np.float64)
+    mask = np.asarray([point["isTrueAnomaly"] for point in points], dtype=bool)
 
-
-def build_runtime(raw: dict) -> dict:
-    """Run the LSTM once at startup and keep the arrays in memory."""
-    window = int(raw["window_size"])
-    series = np.asarray(raw["test_scaled"], dtype=np.float32).reshape(-1, 1)
-    windows = np.stack([series[i:i + window] for i in range(len(series) - window)])
-
-    predictions = STATE["model"].predict(windows, batch_size=256, verbose=0).flatten()
-    actual = series[window:].flatten()
-    errors = np.abs(actual - predictions)
-    steps = np.arange(window, window + len(actual), dtype=np.int64)
-
-    anomalies = [(int(s), int(e)) for s, e in raw["true_anomalies"]]
-    mask = np.zeros(len(actual), dtype=bool)
-    for start, end in anomalies:
-        mask[max(start - window, 0): end - window + 1] = True
-
+    anomalies = [(int(start), int(end)) for start, end in payload["true_anomalies"]]
     reference = errors[: max(int(REFERENCE_FRACTION * len(errors)), 1)]
-    ref_mean = float(reference.mean())
-    ref_std = float(reference.std())
+    ref_mean = float(payload.get("stats", {}).get("ref_mean", reference.mean()))
+    ref_std = float(payload.get("stats", {}).get("ref_std", reference.std()))
 
     return {
-        "window": window,
-        "sensor_id": raw.get("sensor_id", SENSOR_ID),
-        "spacecraft": raw.get("spacecraft", "SMAP"),
-        "series": series,
+        "sensor_id": payload.get("sensor_id", SENSOR_ID),
+        "spacecraft": payload.get("spacecraft", "SMAP"),
+        "window": int(payload["window_size"]),
+        "model": payload.get("model", {"inference": "precomputed"}),
+        "steps": steps,
         "actual": actual,
         "predictions": predictions,
         "errors": errors,
-        "steps": steps,
         "mask": mask,
         "anomalies": anomalies,
         "ref_mean": ref_mean,
@@ -219,7 +202,8 @@ def compute_metrics(
 
 
 def build_telemetry(runtime: dict, every: int) -> dict:
-    indices = np.arange(0, len(runtime["actual"]), max(1, every))
+    step = max(1, int(every))
+    indices = np.arange(0, len(runtime["actual"]), step)
     points = [
         {
             "step": int(runtime["steps"][i]),
@@ -234,8 +218,9 @@ def build_telemetry(runtime: dict, every: int) -> dict:
         "sensor_id": runtime["sensor_id"],
         "spacecraft": runtime["spacecraft"],
         "window_size": runtime["window"],
-        "model_file": STATE["model_file"],
-        "every": max(1, every),
+        "model_file": runtime["model"].get("artifact", "training/artifacts/nasa_lstm_model.keras"),
+        "inference": runtime["model"].get("inference", "precomputed"),
+        "every": step,
         "stats": {
             "mean_error": round(runtime["mean_error"], 6),
             "std_error": round(runtime["std_error"], 6),
@@ -269,10 +254,10 @@ def build_threshold_curve(runtime: dict, tolerance: int, min_duration: int = MIN
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     STATE["started_at"] = time.time()
-    STATE["model"], STATE["model_file"] = load_any_model()
-    with open(os.path.join(BASE_DIR, f"sensor_{SENSOR_ID}_data.json"), encoding="utf-8") as handle:
-        raw = json.load(handle)
-    runtime = build_runtime(raw)
+    path = os.path.join(BASE_DIR, f"telemetry_{SENSOR_ID}.json")
+    with open(path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    runtime = build_runtime(payload)
     curve = build_threshold_curve(runtime, DEFAULT_TOLERANCE)
     STATE["runtime"] = runtime
     STATE["optimal_sensitivity"] = curve["best"]["sensitivity"]
@@ -284,18 +269,23 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="NASA Spacecraft Anomaly Detection API",
     description=(
-        "LSTM forecasting API trained on real NASA SMAP telemetry. "
-        "Prediction errors above a tunable threshold are flagged as anomalies "
-        "and compared against the anomaly windows labelled by NASA JPL engineers."
+        "API serving precomputed LSTM forecasts for real NASA SMAP telemetry. "
+        "Prediction errors above a tunable threshold are flagged as anomalies and compared "
+        "against the windows labelled by NASA JPL engineers."
     ),
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
     docs_url="/docs" if config.DOCS_ENABLED else None,
     redoc_url=None,
     openapi_url="/openapi.json" if config.DOCS_ENABLED else None,
 )
 
-# Order matters: the last middleware added is the outermost one.
+# Middleware is added inner-first: the last one added is the outermost.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+app.add_middleware(CacheControlMiddleware)
+app.add_middleware(RateLimitMiddleware, max_requests=config.RATE_LIMIT_REQUESTS, window_seconds=config.RATE_LIMIT_WINDOW_SECONDS)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.ALLOWED_HOSTS)
+app.add_middleware(SecurityHeadersMiddleware, production=config.IS_PRODUCTION)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.ALLOWED_ORIGINS,
@@ -304,13 +294,6 @@ app.add_middleware(
     allow_headers=["Accept", "Content-Type"],
     max_age=600,
 )
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.ALLOWED_HOSTS)
-app.add_middleware(
-    RateLimitMiddleware,
-    max_requests=config.RATE_LIMIT_REQUESTS,
-    window_seconds=config.RATE_LIMIT_WINDOW_SECONDS,
-)
-app.add_middleware(SecurityHeadersMiddleware, production=config.IS_PRODUCTION)
 
 
 @app.exception_handler(Exception)
@@ -325,6 +308,7 @@ def root() -> dict:
         "name": "NASA Spacecraft Anomaly Detection API",
         "version": app.version,
         "sensor": SENSOR_ID,
+        "inference": "precomputed",
         "endpoints": [
             "/api/health",
             "/api/model-info",
@@ -344,7 +328,8 @@ def root() -> dict:
 def health() -> dict:
     return {
         "status": "ok",
-        "model_file": STATE.get("model_file"),
+        "model_file": STATE["runtime"]["model"].get("artifact") if STATE.get("runtime") else None,
+        "inference": "precomputed",
         "sensor": SENSOR_ID,
         "points": int(len(STATE["runtime"]["actual"])) if STATE.get("runtime") else 0,
         "uptime_seconds": round(time.time() - STATE.get("started_at", time.time()), 1),
@@ -358,7 +343,8 @@ def model_info() -> dict:
         "sensor_id": runtime["sensor_id"],
         "spacecraft": runtime["spacecraft"],
         "window_size": runtime["window"],
-        "model_file": STATE["model_file"],
+        "model": runtime["model"],
+        "inference": "precomputed",
         "stats": {
             "mean_error": round(runtime["mean_error"], 6),
             "std_error": round(runtime["std_error"], 6),

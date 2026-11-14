@@ -34,6 +34,31 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    """Give immutable demo data a short shared-cache lifetime to cut invocations."""
+
+    CACHEABLE_PREFIXES = (
+        "/api/telemetry",
+        "/api/metrics",
+        "/api/anomalies",
+        "/api/threshold-curve",
+        "/api/model-info",
+        "/api/benchmark",
+    )
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.method == "GET":
+            if request.url.path.startswith("/api/health"):
+                response.headers.setdefault("Cache-Control", "no-store")
+            elif any(request.url.path.startswith(prefix) for prefix in self.CACHEABLE_PREFIXES):
+                response.headers.setdefault(
+                    "Cache-Control",
+                    "public, s-maxage=300, stale-while-revalidate=600",
+                )
+        return response
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Sliding-window limiter keyed by client IP (proxy aware)."""
 
