@@ -26,7 +26,14 @@ labelled by NASA JPL engineers (Telemanom dataset).
 | GET | `/api/threshold-curve` | F1 as a function of the threshold multiplier |
 | GET | `/api/benchmark` | Forecast separability screening across eight channels |
 
-Interactive documentation is available at `/docs`.
+Interactive documentation is available at `/docs` in development. It is disabled automatically when
+`ENVIRONMENT=production`.
+
+## Security
+
+CORS allow-list, trusted-host validation, per-IP rate limiting, security headers and HSTS are applied
+to every response. See [SECURITY.md](../SECURITY.md) for the threat model, environment variables and
+audit results.
 
 ## Run locally
 

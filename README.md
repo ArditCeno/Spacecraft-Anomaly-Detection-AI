@@ -52,9 +52,7 @@ flowchart LR
     B --> C[LSTM 64 → 32 → Dense]
     B --> D[MinMaxScaler]
     C --> E[(nasa_lstm_model.keras)]
-    D --> F[(scaler.pkl)]
     E --> G[FastAPI backend]
-    F --> G
     G -->|REST + CORS| H[React + Tailwind dashboard]
     H -->|threshold slider| G
 ```
@@ -139,7 +137,6 @@ OpenAPI documentation: `http://localhost:8000/docs`.
 ├── backend/
 │   ├── main.py                  # FastAPI application
 │   ├── nasa_lstm_model.keras    # trained LSTM
-│   ├── scaler.pkl               # MinMaxScaler
 │   ├── sensor_D-1_data.json     # scaled test series + NASA anomaly labels
 │   ├── requirements.txt
 │   ├── Dockerfile               # Hugging Face Spaces image
@@ -152,6 +149,7 @@ OpenAPI documentation: `http://localhost:8000/docs`.
 ├── training/
 │   ├── train.py                 # reproducible training script
 │   ├── screen_channels.py       # channel benchmark
+│   ├── scaler_D-1.pkl           # fitted MinMaxScaler (reproducibility only)
 │   └── training_history.json
 ├── docs/dashboard.png           # rendered dashboard
 └── README.md
@@ -184,6 +182,18 @@ cd frontend
 npm install
 npm run dev
 ```
+
+## Security
+
+The API is hardened for public hosting: CORS allow-list, trusted-host validation, per-IP rate
+limiting, security headers, HSTS, disabled OpenAPI docs in production, generic error responses and
+bounded input validation. No secrets are committed, `.env` files are ignored, and dependencies are
+audited (`npm audit` clean; one non-exploitable `protobuf` advisory documented).
+
+The application has no accounts, database, cookies, uploads or write endpoints, so authentication,
+RLS, CSRF, SQL-injection and password-hashing controls are intentionally out of scope. The full
+threat model, verification evidence and production environment variables are documented in
+[SECURITY.md](SECURITY.md).
 
 ## Deployment
 
