@@ -116,7 +116,7 @@ function ChartTooltip({ active, payload, label }) {
 
 function Metric({ label, value, sub }) {
   return (
-    <div className="px-5 py-5 text-center" style={{ backgroundColor: 'rgba(2,6,12,0.22)' }}>
+    <div className="px-5 py-5 text-center" style={{ backgroundColor: 'rgba(2,6,12,0.18)' }}>
       <div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{label}</div>
       <div className="mt-1.5 font-mono text-2xl text-slate-100">{value}</div>
       <div className="mt-1 text-[11px] text-slate-400">{sub}</div>
@@ -188,10 +188,10 @@ function SpaceBackdrop({ showIframe, motion, loaded, onLoad }) {
           onLoad={onLoad}
           className="absolute inset-0 h-full w-full border-0"
           style={{
-            opacity: loaded ? 0.74 : 0,
-            transform: 'scale(1.2) translateX(12%)',
+            opacity: loaded ? 0.92 : 0,
+            transform: 'scale(1.12) translateX(6%)',
             transformOrigin: 'center',
-            filter: 'brightness(0.9) saturate(0.95)',
+            filter: 'brightness(1) saturate(1)',
             transition: 'opacity 1.4s ease',
           }}
         />
@@ -200,14 +200,14 @@ function SpaceBackdrop({ showIframe, motion, loaded, onLoad }) {
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(7,11,18,0.18) 0%, rgba(7,11,18,0.45) 45%, rgba(7,11,18,0.82) 100%)',
+            'linear-gradient(180deg, rgba(7,11,18,0.10) 0%, rgba(7,11,18,0.35) 45%, rgba(7,11,18,0.78) 100%)',
         }}
       />
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(circle at 50% 35%, rgba(7,11,18,0.02) 0%, rgba(7,11,18,0.28) 65%, rgba(7,11,18,0.75) 100%)',
+            'radial-gradient(circle at 50% 35%, rgba(7,11,18,0.00) 0%, rgba(7,11,18,0.20) 65%, rgba(7,11,18,0.70) 100%)',
         }}
       />
       <div
@@ -458,8 +458,8 @@ export default function App() {
       <AboutDialog dialogRef={aboutRef} />
       <div className="relative z-10 w-full px-3 py-6 sm:px-5 lg:px-6">
         <div className="w-full">
-        <div className="w-full rounded-md border border-white/10 bg-slate-950/55 shadow-2xl shadow-black/60 backdrop-blur-md">
-          <header className="flex flex-col gap-6 bg-gradient-to-b from-white/[0.05] to-slate-950/40 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="w-full rounded-md border border-white/10 bg-slate-950/40 shadow-2xl shadow-black/60 ring-1 ring-white/5 backdrop-blur-lg">
+          <header className="flex flex-col gap-6 bg-gradient-to-b from-white/[0.06] to-slate-950/25 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
                 nasa {spacecraft.toLowerCase()} / telemanom
@@ -532,7 +532,7 @@ export default function App() {
             />
           </div>
 
-          <section className="border-t px-6 py-5" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.35)' }}>
+          <section className="border-t px-6 py-5" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
@@ -575,7 +575,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="border-t px-6 py-6" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.35)' }}>
+          <section className="border-t px-6 py-6" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
@@ -592,7 +592,7 @@ export default function App() {
                 <LegendItem color="#fb7185" label="anomaly" />
               </div>
             </div>
-            <div className="h-72 w-full rounded-sm bg-slate-950/25 p-1">
+            <div className="h-72 w-full rounded-sm bg-slate-950/35 p-1">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -14 }}>
                   <CartesianGrid stroke={RULE} strokeDasharray="2 4" />
@@ -656,7 +656,7 @@ export default function App() {
             </div>
           </section>
 
-          <div className="grid border-t lg:grid-cols-3" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.35)' }}>
+          <div className="grid border-t lg:grid-cols-3" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
             <section className="border-b px-6 py-6 lg:col-span-2 lg:border-b-0 lg:border-r" style={{ borderColor: RULE }}>
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
                 Prediction error and threshold
@@ -665,7 +665,7 @@ export default function App() {
                 error = absolute difference between actual and predicted. Everything above the dashed line
                 is flagged.
               </p>
-              <div className="mt-4 h-56 w-full rounded-sm bg-slate-950/25 p-1">
+              <div className="mt-4 h-56 w-full rounded-sm bg-slate-950/35 p-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -14 }}>
                     <defs>
@@ -731,7 +731,7 @@ export default function App() {
                 Detection diagnostics
               </h2>
               <p className="mt-1 text-sm text-slate-400">F1 across every threshold multiplier.</p>
-              <div className="mt-4 h-36 w-full rounded-sm bg-slate-950/20 p-1">
+              <div className="mt-4 h-36 w-full rounded-sm bg-slate-950/30 p-1">
                 {curve ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={curve.points} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
@@ -805,7 +805,7 @@ export default function App() {
             </section>
           </div>
 
-          <footer className="border-t px-6 py-4 text-[11px] leading-relaxed text-slate-400" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.35)' }}>
+          <footer className="border-t px-6 py-4 text-[11px] leading-relaxed text-slate-400" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
             <p>
               Telemetry from the NASA SMAP channel D-1, distributed with the Telemanom dataset (Hundman et
               al., KDD 2018). Anomaly windows labelled by NASA JPL engineers.
@@ -825,6 +825,36 @@ export default function App() {
                 Solar System by pinotoon on Sketchfab
               </a>{' '}
               (Editorial licence, embedded with do-not-track).
+            </p>
+            <p className="mt-3 border-t border-white/10 pt-2 text-slate-400">
+              © 2026 Ardit Ceno. Code licensed under the{' '}
+              <a
+                href="https://github.com/ArditCeno/Spacecraft-Anomaly-Detection-AI/blob/main/LICENSE"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-cyan-300 underline decoration-cyan-900 underline-offset-4 hover:text-cyan-200"
+              >
+                MIT License
+              </a>
+              . Telemetry © NASA JPL, distributed under the{' '}
+              <a
+                href="https://github.com/khundman/telemanom/blob/master/LICENSE.txt"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-cyan-300 underline decoration-cyan-900 underline-offset-4 hover:text-cyan-200"
+              >
+                Telemanom BSD-3-Clause licence
+              </a>
+              . 3D backdrop © pinotoon (Sketchfab Editorial). See{' '}
+              <a
+                href="https://github.com/ArditCeno/Spacecraft-Anomaly-Detection-AI/blob/main/NOTICE.md"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-cyan-300 underline decoration-cyan-900 underline-offset-4 hover:text-cyan-200"
+              >
+                third-party notices
+              </a>
+              .
             </p>
           </footer>
         </div>
