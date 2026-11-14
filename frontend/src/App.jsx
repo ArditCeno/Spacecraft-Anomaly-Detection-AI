@@ -14,7 +14,7 @@ import {
   YAxis,
 } from 'recharts'
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
+const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 const SENSOR_ID = 'D-1'
 const CHART_EVERY = 3
 const TOLERANCE = 25
@@ -336,7 +336,7 @@ export default function App() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-3" style={{ backgroundColor: INK }}>
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-slate-400">acquiring telemetry</p>
         <p className="max-w-sm px-6 text-center text-xs text-slate-600">
-          The free-tier backend can take up to 30 seconds to wake after inactivity.
+          The free-tier backend can take up to 60 seconds to wake after inactivity.
         </p>
       </div>
     )
@@ -349,7 +349,7 @@ export default function App() {
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-rose-400">link down</p>
           <h1 className="mt-2 text-lg text-slate-100">Backend unavailable</h1>
           <p className="mt-2 text-sm text-slate-400">{error}</p>
-          <p className="mt-2 font-mono text-xs text-slate-400">{API_URL}</p>
+          <p className="mt-2 font-mono text-xs text-slate-400">{API_URL || 'same origin (/api)'}</p>
           <button
             type="button"
             onClick={retry}
@@ -706,6 +706,9 @@ export default function App() {
                   <dd className="text-slate-300">{EPISODE_GAP} samples</dd>
                 </div>
                 <div className="flex justify-between gap-3">
+                  <dt className="text-slate-400">inference</dt>
+                  <dd className="text-slate-300">{telemetry.inference || 'precomputed'}</dd>
+                </div>                <div className="flex justify-between gap-3">
                   <dt className="text-slate-400">artefact</dt>
                   <dd className="truncate text-slate-300">{telemetry.model_file}</dd>
                 </div>
