@@ -51,6 +51,7 @@ A complete anomaly-detection system built on a public NASA dataset:
 - [Baseline and limitations](#baseline-and-limitations)
 - [API](#api)
 - [Dashboard](#dashboard)
+- [Responsive and accessible](#responsive-and-accessible)
 - [Security](#security)
 - [Deployment](#deployment)
 - [Reproduce](#reproduce)
@@ -224,6 +225,22 @@ controls remain.*
 
 Visual decisions are documented in [docs/DESIGN.md](docs/DESIGN.md).
 
+## Responsive and accessible
+
+Tested at 320, 390, 768, 844 (landscape) and 1440 px: no horizontal overflow, all three charts
+render, and the explainer dialog stays inside the viewport.
+
+![Mobile layout](docs/mobile.png)
+
+- **Fluid layout** from 320 px: two-column metrics strip with a full-width last cell, full-width
+  charts, stacked diagnostics and a compact header.
+- **Touch targets**: a 24 px slider hit area with a 16 px thumb and a larger dialog close button.
+- **Keyboard**: a skip link to the dashboard, visible focus rings on every control, and a native
+  `<dialog>` with focus trapping and Escape to close.
+- **Screen readers**: landmark regions, labelled sections, an `aria-live` metric summary, chart
+  descriptions and explicit button states.
+- **Motion**: `prefers-reduced-motion` disables the backdrop animation and smooth scrolling.
+
 ## Security
 
 The API is hardened for public hosting: CORS allow-list, trusted-host validation, per-IP rate
@@ -307,6 +324,7 @@ best point F1=0.9405 at sensitivity=6.00
 ├── docs/
 │   ├── dashboard.png
 │   ├── explainer.png
+│   ├── mobile.png
 │   ├── observatory.png
 │   ├── DESIGN.md
 │   └── DEPLOYMENT.md

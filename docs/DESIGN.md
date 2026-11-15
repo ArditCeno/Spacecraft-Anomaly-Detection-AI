@@ -67,6 +67,18 @@ Neutral scrims at the top and bottom blend the section into the page without cov
 The backdrop is still the same fixed iframe, so scrolling reveals it instead of loading a second
 scene.
 
+## Responsive and accessibility
+
+The console is fluid from 320 px to ultrawide. The metrics strip becomes two columns (the fifth
+cell spans the row), charts stretch with responsive heights, and the diagnostics stack until
+`xl`. The slider has a 24 px hit area so it remains usable on touch, and every interactive element
+shows a visible cyan focus ring.
+
+Accessibility is part of the layout, not an afterthought: skip link, `<main>` landmark, labelled
+regions, `aria-live` metric summary, `role="img"` chart descriptions, native dialog semantics with
+Escape handling, and reduced-motion behaviour for the backdrop and smooth scrolling. The layout was
+verified at 320, 390, 768, 844 landscape and 1440 px with zero horizontal overflow.
+
 ## Typography and colour
 
 | Token | Value |
