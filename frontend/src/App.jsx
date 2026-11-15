@@ -116,10 +116,10 @@ function ChartTooltip({ active, payload, label }) {
 
 function Metric({ label, value, sub }) {
   return (
-    <div className="px-5 py-5 text-center" style={{ backgroundColor: 'rgba(2,6,12,0.18)' }}>
-      <div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{label}</div>
-      <div className="mt-1.5 font-mono text-2xl text-slate-100">{value}</div>
-      <div className="mt-1 text-[11px] text-slate-400">{sub}</div>
+    <div className="min-w-0 px-3 py-4 text-center sm:px-5 sm:py-5" style={{ backgroundColor: 'rgba(2,6,12,0.18)' }}>
+      <div className="text-[10px] uppercase tracking-[0.12em] text-slate-400 sm:text-[11px]">{label}</div>
+      <div className="mt-1 font-mono text-xl text-slate-100 sm:mt-1.5 sm:text-2xl">{value}</div>
+      <div className="mt-1 text-[10px] leading-snug text-slate-400 sm:text-[11px]">{sub}</div>
     </div>
   )
 }
@@ -226,9 +226,9 @@ function AboutDialog({ dialogRef }) {
     <dialog
       ref={dialogRef}
       aria-labelledby="about-title"
-      className="about-dialog max-h-[88vh] w-[min(760px,92vw)] rounded-md border border-white/10 bg-slate-950/70 p-0 text-slate-200 shadow-2xl shadow-black/70 ring-1 ring-white/10 backdrop-blur-2xl open:flex open:flex-col"
+      className="about-dialog max-h-[88vh] w-[min(760px,94vw)] sm:w-[min(760px,92vw)] rounded-md border border-white/10 bg-slate-950/70 p-0 text-slate-200 shadow-2xl shadow-black/70 ring-1 ring-white/10 backdrop-blur-2xl open:flex open:flex-col"
     >
-      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 bg-white/[0.03] px-6 py-4">
+      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 bg-white/[0.03] px-4 py-4 sm:px-6">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-300">mission brief</p>
           <h2 id="about-title" className="mt-1 text-xl font-semibold text-slate-100">
@@ -238,12 +238,13 @@ function AboutDialog({ dialogRef }) {
         <button
           type="button"
           onClick={() => dialogRef.current?.close()}
-          className="border border-white/15 px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider text-slate-300 hover:bg-white/5"
+          aria-label="Close explainer"
+          className="border border-white/15 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-slate-300 hover:bg-white/5"
         >
           close
         </button>
       </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-white/[0.02] px-6 py-5 text-sm leading-relaxed text-slate-300 backdrop-blur-sm">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-white/[0.02] px-4 py-4 text-sm leading-relaxed text-slate-300 backdrop-blur-sm sm:px-6 sm:py-5">
         <p>
           This is a mission-control view of one real telemetry channel from NASA's SMAP satellite. An
           LSTM network was trained only on normal operation and forecasts the next sample from the
@@ -407,7 +408,7 @@ export default function App() {
 
   if (status === 'loading') {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3" style={{ backgroundColor: INK }}>
+      <div role="status" aria-live="polite" className="flex min-h-screen flex-col items-center justify-center gap-3" style={{ backgroundColor: INK }}>
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-slate-400">acquiring telemetry</p>
         <p className="max-w-sm px-6 text-center text-xs text-slate-600">
           The free-tier backend can take up to 60 seconds to wake after inactivity.
@@ -418,7 +419,7 @@ export default function App() {
 
   if (status === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6" style={{ backgroundColor: INK }}>
+      <div role="alert" className="flex min-h-screen items-center justify-center p-6" style={{ backgroundColor: INK }}>
         <div className="w-full max-w-md border p-6" style={{ borderColor: RULE }}>
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-rose-400">link down</p>
           <h1 className="mt-2 text-lg text-slate-100">Backend unavailable</h1>
@@ -441,7 +442,13 @@ export default function App() {
   const showIframe = wide && backdropReady && tabVisible
 
   return (
-    <div className="relative min-h-screen overflow-hidden" style={{ backgroundColor: INK }}>
+    <div className="relative min-h-screen overflow-x-clip" style={{ backgroundColor: INK }}>
+      <a
+        href="#dashboard"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:border focus:border-cyan-500 focus:bg-slate-950 focus:px-3 focus:py-2 focus:font-mono focus:text-xs focus:text-cyan-200"
+      >
+        skip to dashboard
+      </a>
       <SpaceBackdrop
         showIframe={showIframe}
         motion={motion}
@@ -449,10 +456,15 @@ export default function App() {
         onLoad={() => setBackdropLoaded(true)}
       />
       <AboutDialog dialogRef={aboutRef} />
-      <div id="top" className="relative z-10 w-full px-3 py-6 sm:px-5 lg:px-6">
+      <main id="dashboard" className="relative z-10 w-full px-3 py-6 sm:px-5 lg:px-6">
         <div className="w-full">
         <div className="w-full rounded-md border border-white/10 bg-slate-950/40 shadow-2xl shadow-black/60 ring-1 ring-white/5 backdrop-blur-lg">
-          <header className="flex flex-col gap-6 bg-gradient-to-b from-white/[0.06] to-slate-950/25 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
+          <p className="sr-only" aria-live="polite">
+            At {sensitivity.toFixed(1)} sigma: precision {asPercent(metrics.precision)}, recall{' '}
+            {asPercent(metrics.recall)}, point F1 {asPercent(metrics.f1)}, {metrics.detectedWindows} of{' '}
+            {metrics.windows.length} anomaly episodes detected.
+          </p>
+          <header className="flex flex-col gap-5 bg-gradient-to-b from-white/[0.06] to-slate-950/25 px-4 py-5 sm:gap-6 sm:px-6 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
                 nasa {spacecraft.toLowerCase()} / telemanom
@@ -472,7 +484,7 @@ export default function App() {
                 what am I looking at?
               </button>
             </div>
-            <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-1.5 font-mono text-[11px]">
+            <dl className="grid w-full grid-cols-2 gap-x-4 gap-y-1.5 font-mono text-[11px] sm:w-auto sm:grid-cols-[auto_auto] sm:gap-x-6">
               <dt className="text-slate-400">status</dt>
               <dd className="text-cyan-300">online</dd>
               <dt className="text-slate-400">sensor</dt>
@@ -482,13 +494,14 @@ export default function App() {
               <dt className="text-slate-400">model</dt>
               <dd className="text-slate-200">lstm 64 / 32</dd>
               <dt className="text-slate-400">points</dt>
-              <dd className="text-slate-200">{telemetry.data.length.toLocaleString()}</dd>
+              <dd className="break-words text-slate-200">{telemetry.data.length.toLocaleString()}</dd>
               <dt className="text-slate-400">motion</dt>
               <dd>
                 <button
                   type="button"
                   onClick={() => setMotion((value) => !value)}
                   aria-pressed={motion}
+                  aria-label="Toggle background motion"
                   className="text-cyan-300 underline decoration-cyan-800 underline-offset-4 hover:text-cyan-200"
                 >
                   {motion ? 'on' : 'off'}
@@ -497,7 +510,7 @@ export default function App() {
             </dl>
           </header>
 
-          <div className="grid grid-cols-2 gap-px border-t sm:grid-cols-3 lg:grid-cols-5" style={{ borderColor: 'rgba(148,163,184,0.18)', backgroundColor: 'rgba(148,163,184,0.18)' }}>
+          <div className="grid grid-cols-2 gap-px border-t sm:grid-cols-3 lg:grid-cols-5 [&>div:last-child]:col-span-2 sm:[&>div:last-child]:col-span-1" style={{ borderColor: 'rgba(148,163,184,0.18)', backgroundColor: 'rgba(148,163,184,0.18)' }}>
             <Metric
               label="episodes detected"
               value={`${metrics.detectedWindows} / ${metrics.windows.length}`}
@@ -525,13 +538,13 @@ export default function App() {
             />
           </div>
 
-          <section className="border-t px-6 py-5" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
+          <section aria-labelledby="sensitivity-heading" className="border-t px-4 py-5 sm:px-6" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                <h2 id="sensitivity-heading" className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
                   alarm sensitivity
                 </h2>
-                <p className="mt-1 max-w-xl text-sm text-slate-400">
+                <p id="sensitivity-help" className="mt-1 max-w-xl text-sm text-slate-400">
                   threshold = reference mean + k x reference std. Reference statistics come from the first
                   40% of the test split, before the labelled anomaly.
                 </p>
@@ -545,10 +558,12 @@ export default function App() {
                     step="0.1"
                     value={sensitivity}
                     onChange={(event) => setSensitivity(Number(event.target.value))}
-                    className="h-1 w-full cursor-pointer accent-cyan-400"
+                    className="w-full cursor-pointer accent-cyan-400"
                     aria-label="Threshold multiplier"
+                    aria-describedby="sensitivity-help"
+                    aria-valuetext={`${sensitivity.toFixed(1)} sigma, threshold ${threshold.toFixed(3)}`}
                   />
-                  <span className="w-14 border px-2 py-1 text-center font-mono text-sm text-cyan-300" style={{ borderColor: RULE }}>
+                  <span className="w-16 border px-2 py-1 text-center font-mono text-sm text-cyan-300" style={{ borderColor: RULE }}>
                     {sensitivity.toFixed(1)}
                   </span>
                 </div>
@@ -559,6 +574,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setSensitivity(stats.optimal_sensitivity)}
+                    aria-label={`Use the optimal threshold multiplier of ${stats.optimal_sensitivity} sigma`}
                     className="text-cyan-300 underline decoration-cyan-800 underline-offset-4 hover:text-cyan-200"
                   >
                     use optimal {stats.optimal_sensitivity}
@@ -568,10 +584,10 @@ export default function App() {
             </div>
           </section>
 
-          <section className="border-t px-6 py-6" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
+          <section aria-labelledby="signal-heading" className="border-t px-4 py-5 sm:px-6 sm:py-6" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
+                <h2 id="signal-heading" className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
                   Sensor signal and forecast
                 </h2>
                 <p className="mt-1 text-sm text-slate-400">
@@ -585,7 +601,7 @@ export default function App() {
                 <LegendItem color="#fb7185" label="anomaly" />
               </div>
             </div>
-            <div className="h-72 w-full rounded-sm bg-slate-950/35 p-1">
+            <div role="img" aria-label="Actual SMAP telemetry against the LSTM forecast from step 50 to 8508, with the NASA anomaly window highlighted" className="h-64 w-full rounded-sm bg-slate-950/35 p-1 sm:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -14 }}>
                   <CartesianGrid stroke={RULE} strokeDasharray="2 4" />
@@ -594,14 +610,14 @@ export default function App() {
                     type="number"
                     domain={['dataMin', 'dataMax']}
                     stroke="#475569"
-                    tick={{ fontSize: 11, fontFamily: 'ui-monospace' }}
+                    tick={{ fontSize: 10, fontFamily: 'ui-monospace' }}
                     tickFormatter={(value) => value.toLocaleString()}
-                    minTickGap={48}
+                    minTickGap={64}
                   />
                   <YAxis
                     stroke="#475569"
-                    tick={{ fontSize: 11, fontFamily: 'ui-monospace' }}
-                    width={52}
+                    tick={{ fontSize: 10, fontFamily: 'ui-monospace' }}
+                    width={44}
                   />
                   <Tooltip content={<ChartTooltip />} />
                   {metrics.windows.map((window) => (
@@ -649,16 +665,16 @@ export default function App() {
             </div>
           </section>
 
-          <div className="grid border-t lg:grid-cols-3" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
-            <section className="border-b px-6 py-6 lg:col-span-2 lg:border-b-0 lg:border-r" style={{ borderColor: RULE }}>
-              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
+          <div className="grid border-t xl:grid-cols-3" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
+            <section aria-labelledby="error-heading" className="border-b px-4 py-5 sm:px-6 sm:py-6 xl:col-span-2 xl:border-b-0 xl:border-r" style={{ borderColor: RULE }}>
+              <h2 id="error-heading" className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
                 Prediction error and threshold
               </h2>
               <p className="mt-1 text-sm text-slate-400">
                 error = absolute difference between actual and predicted. Everything above the dashed line
                 is flagged.
               </p>
-              <div className="mt-4 h-56 w-full rounded-sm bg-slate-950/35 p-1">
+              <div role="img" aria-label="Prediction error over time with the active alarm threshold" className="mt-4 h-48 w-full rounded-sm bg-slate-950/35 p-1 sm:h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -14 }}>
                     <defs>
@@ -673,14 +689,14 @@ export default function App() {
                       type="number"
                       domain={['dataMin', 'dataMax']}
                       stroke="#475569"
-                      tick={{ fontSize: 11, fontFamily: 'ui-monospace' }}
+                      tick={{ fontSize: 10, fontFamily: 'ui-monospace' }}
                       tickFormatter={(value) => value.toLocaleString()}
-                      minTickGap={48}
+                      minTickGap={64}
                     />
                     <YAxis
                       stroke="#475569"
-                      tick={{ fontSize: 11, fontFamily: 'ui-monospace' }}
-                      width={52}
+                      tick={{ fontSize: 10, fontFamily: 'ui-monospace' }}
+                      width={44}
                     />
                     <Tooltip content={<ChartTooltip />} />
                     {metrics.windows.map((window) => (
@@ -719,12 +735,12 @@ export default function App() {
               </div>
             </section>
 
-            <section className="px-6 py-6">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
+            <section aria-labelledby="diagnostics-heading" className="px-4 py-5 sm:px-6 sm:py-6">
+              <h2 id="diagnostics-heading" className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">
                 Detection diagnostics
               </h2>
               <p className="mt-1 text-sm text-slate-400">F1 across every threshold multiplier.</p>
-              <div className="mt-4 h-36 w-full rounded-sm bg-slate-950/30 p-1">
+              <div role="img" aria-label="Point F1 and episode F1 across threshold multipliers from 0.5 to 10 sigma" className="mt-4 h-40 w-full rounded-sm bg-slate-950/30 p-1 sm:h-36">
                 {curve ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={curve.points} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
@@ -798,7 +814,7 @@ export default function App() {
             </section>
           </div>
 
-          <footer className="border-t px-6 py-4 text-[11px] leading-relaxed text-slate-400" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
+          <footer className="border-t px-4 py-4 text-[11px] leading-relaxed text-slate-400 sm:px-6" style={{ borderColor: 'rgba(148,163,184,0.14)', backgroundColor: 'rgba(2,6,12,0.30)' }}>
             <p>
               Telemetry from the NASA SMAP channel D-1, distributed with the Telemanom dataset (Hundman et
               al., KDD 2018). Anomaly windows labelled by NASA JPL engineers.
@@ -852,17 +868,17 @@ export default function App() {
           </footer>
         </div>
         </div>
-      </div>
+      </main>
       <section
         id="observatory"
-        aria-label="Solar system backdrop"
-        className="relative z-10 flex min-h-[100svh] flex-col items-center justify-end px-6 pb-14"
+        aria-labelledby="observatory-heading"
+        className="relative z-10 flex min-h-[100svh] flex-col items-center justify-end px-4 pb-10 sm:px-6 sm:pb-14"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[#070b12] to-transparent" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-[#070b12] via-[#070b12]/85 to-transparent" />
         <div className="relative z-10 max-w-2xl text-center">
           <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-cyan-300">observatory</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-100 sm:text-3xl">
+          <h2 id="observatory-heading" className="mt-2 text-2xl font-semibold tracking-tight text-slate-100 sm:text-3xl">
             Solar System
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-300">
@@ -877,12 +893,13 @@ export default function App() {
               type="button"
               onClick={() => setMotion((value) => !value)}
               aria-pressed={motion}
+              aria-label="Toggle background motion"
               className="text-cyan-300 underline decoration-cyan-800 underline-offset-4 hover:text-cyan-200"
             >
               motion {motion ? 'on' : 'off'}
             </button>
             <a
-              href="#top"
+              href="#dashboard"
               className="text-slate-300 underline decoration-slate-700 underline-offset-4 hover:text-slate-100"
             >
               back to dashboard
